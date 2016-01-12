@@ -1,0 +1,5 @@
+<launch>
+	
+<node pkg="baxter_controller" type="gesture_tracker" name="gesture_tracker" launch-prefix="gdb -ex run --args" />
+
+</launch>

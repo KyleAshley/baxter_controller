@@ -1,12 +1,25 @@
 #!/usr/bin/env python
-'''
-#************************************************************************************
-#   Baxter Command Node
-#   Author: Kyle Ashley
-#************************************************************************************
-'''
+
+import rospy
+
+import sys, os, sched, time, errno
+
+import glob
+import cv2
+from cv2 import *
+
+import multiprocessing
+import numpy as np
+import math
+
+import smtplib
+from cv2 import __version__
 
 # Baxter
+import BaxterAction
+import BaxterVision
+import BaxterPositions
+
 import baxter_interface
 from baxter_interface import CHECK_VERSION
 from baxter_core_msgs.msg import EndpointState
@@ -14,21 +27,21 @@ from baxter_core_msgs.msg import EndEffectorState
 
 from sensor_msgs.msg import Range
 
-import threading
 import sys
 import copy
 
 import time
-import subprocess, signal, os, gtk.gdk
+import subprocess, signal, os
 
-from thread import *
 
-import rospy
 import cv2
+from cv2 import *
+import multiprocessing
+import numpy as np
 
 from std_msgs.msg import String
 from std_msgs.msg import Int32MultiArray
-import cv_bridge
+from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import (
     Image,
 )
@@ -72,7 +85,7 @@ class GripperState:
         self.x = data.pose.position.x
         self.y = data.pose.position.y
         self.z = data.pose.position.z
-        print self.x, self.y, self.z
+        #print self.x, self.y, self.z
 
     def gripperRange_callback(self, data):
         minVal = data.min_range
@@ -88,44 +101,11 @@ class GripperState:
     def gripperForce_callback(self, data):
         self.force = float(data.force)
 
-class BaxterActionServer:
-    def __init__(self):
-        # initialize interfaces
-        rs = baxter_interface.RobotEnable(CHECK_VERSION)
-        init_state = rs.state().enabled
-
-        # Grippers
-        self.leftGripper = baxter_interface.Gripper('left', CHECK_VERSION)
-        self.rightGripper = baxter_interface.Gripper('right', CHECK_VERSION)
-
-        # Limbs
-        self.leftLimb = baxter_interface.Limb('left')
-        self.rightLimb = baxter_interface.Limb('right')
-        
-        # JOINT SPEEDS
-        self.manualJointAccuracy = baxter_interface.settings.JOINT_ANGLE_TOLERANCE
-        self.manualJointTimeout = 20.0
-        self.manualJointSpeed = 0.1
-
-        # set manual control
-        self.leftLimb.set_joint_position_speed(self.manualJointSpeed)
-        self.rightLimb.set_joint_position_speed(self.manualJointSpeed)
-
-    def calibrateGripper(self, selectedGripper):
-        if selectedGripper.lower() == 'left':
-            self.leftGripper.calibrate()
-        elif selectedGripper.lower() == 'right':
-            self.rightGripper.calibrate()
-        elif selectedGripper.lower() == 'both':
-            self.leftGripper.calibrate()
-            self.rightGripper.calibrate()
-
-
 
 class BaxterController:
     def __init__(self):
         rospy.init_node('BaxterController', anonymous=True)
-        self.rate = rospy.Rate(10) # 10hz
+        self.rate = rospy.Rate(60) # 10hz
 
         self.my_env = os.environ
         self.openni_process = None
@@ -133,20 +113,50 @@ class BaxterController:
         self.gripperStateLeft = GripperState("left")
         self.gripperStateRight = GripperState("right")
 
-        # Grab Baxter Controller
-        print "Initializing Baxter Action Server"
-        self.action = BaxterActionServer()
+        # Baxter Action Interface
+        rospy.loginfo("Initializing Baxter Action Interface")
+        self.action = BaxterAction.BaxterAction()
+        self.action.calibrateGripper(selectedGripper = "left")
+        self.action.calibrateGripper(selectedGripper = "right")
 
+       
+        #self.action.resetArms()
+        '''
+        # Baxter Vision Interface     
+        self.vision = BaxterVision.BaxterVision()
+        rospy.loginfo("Waiting for Kinect data...")
+        while(not self.vision.has_depth_data and not self.vision.has_rgb_data):
+            pass
+        rospy.loginfo("Kinect Data Received")
+
+        #self.action.moveGripper(selectedGripper = 1, pos = self.vision.r_hand_state, openClose = None)
+        #self.action.mimic(self.vision)
+        '''
+        
+
+
+        #rospy.sleep(2)
+        #self.vision.calibrateCamera()
+
+
+
+        '''
         # Calibrate Gripper
-        print "Calibrating Gripper...."
+        rospy.loginfo("Calibrating Gripper")
         self.action.calibrateGripper("both")
 
+        rospy.loginfo("Going to waiting position")
+        self.action.goToWaiting("left")
+        rospy.sleep(1)
+        #self.action.goToWaiting("right")
+        #rospy.sleep(1)
+        '''
 
 
 
 
 bx = BaxterController()
 
+rospy.spin()
 
-while(cv2.waitKey(10) is not 27):
-    pass
+

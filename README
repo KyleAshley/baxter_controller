@@ -1,0 +1,12 @@
+Baxter Controller Package:
+
+
+Programming By Demonstration:
+
+MIMIC DEMO:
+
+roslaunch baxter_controller baxter_controller.launch
+roslaunch openni_launch openni.launch
+roslaunch skeleton_markers markers.launch
+
+rosrun baxter_controller BaxterController.py
