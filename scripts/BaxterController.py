@@ -19,6 +19,7 @@ from cv2 import __version__
 import BaxterAction
 import BaxterVision
 import BaxterPositions
+from BaxterUtil import *
 
 import baxter_interface
 from baxter_interface import CHECK_VERSION
@@ -130,10 +131,24 @@ class BaxterController:
         rospy.loginfo("Kinect Data Received")
 
         #self.action.moveGripper(selectedGripper = 1, pos = self.vision.r_hand_state, openClose = None)
+        #-----------------------------------------------------------#
+        # MIMIC DEMO
+        #-----------------------------------------------------------#
         #self.action.mimic(self.vision)
+        #-----------------------------------------------------------#
         '''
         
+        self.action.command_retrieve("kyle", "red")
 
+
+
+
+
+        '''
+        self.action.record(self.vision)
+
+        self.action.playback()
+        '''
 
         #rospy.sleep(2)
         #self.vision.calibrateCamera()

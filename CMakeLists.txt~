@@ -128,17 +128,52 @@ include_directories(
 
 ## Declare a cpp executable
 
+
+
 add_executable(point_cloud_capture_node src/PointCloudCapture_Pub.cpp
 					src/PointCloudCapture/PointCloudCapture.cpp 
 					src/PointCloudCapture/InputData.cpp)
 
 add_executable(gesture_tracker src/gestureTracker.cpp src/util.cpp)
 
+add_executable(Recognizer src/Recognizer.cpp
+		src/Detector.cpp
+		src/PointCloudCapture/PointCloudCapture.cpp
+		src/PointCloudCapture/InputData.cpp
+)
+
+add_executable(ObjectColors src/ObjectColors.cpp
+)
+
+add_executable(PowerBotNavigate src/PowerBotNavigate.cpp
+		src/Recognizer.cpp
+		src/Detector.cpp
+		src/PointCloudCapture/PointCloudCapture.cpp 
+		src/PowerBotClient.cpp src/PointCloudCapture/InputData.cpp
+)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(baxter_sp_node baxter_sp_generate_messages_cpp)
 
 link_directories( ${ARIA_LIBRARY} )
+
+target_link_libraries(PowerBotNavigate
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
+   ${PCL_LIBRARIES}
+   #${PCL_LIBRARY_DIRS}
+   /usr/local/Aria/lib/libAria.so
+   /usr/local/Aria/lib/libArNetworking.so 
+   libvtkCommon.so libvtkFiltering.so 
+ )
+
+target_link_libraries(ObjectColors
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
+   ${PCL_LIBRARIES}
+   #${PCL_LIBRARY_DIRS}
+ )
 
 target_link_libraries(point_cloud_capture_node
    ${catkin_LIBRARIES}
@@ -160,6 +195,13 @@ target_link_libraries(gesture_tracker
 #   ${PCL_LIBRARIES}
 #   libvtkCommon.so libvtkFiltering.so 
 # )
+
+target_link_libraries(Recognizer
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
+   ${PCL_LIBRARIES}
+   libvtkCommon.so libvtkFiltering.so 
+ )
 
 
 #############

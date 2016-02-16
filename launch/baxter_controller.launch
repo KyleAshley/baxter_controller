@@ -8,7 +8,7 @@
 	<include file="$(find baxter_moveit_config)/launch/demo_baxter.launch" />
 	
 	<!-- Launch openni -->
-	<include file="$(find openni_launch)/launch/openni.launch" />
+	<!--<include file="$(find openni_launch)/launch/openni.launch" /> -->
 
 	<!-- This should be only used with the understanding that you must manually disable baxter when roslaunch dies using "-d" option -->
 	<!-- <node pkg="baxter_tools" type="enable_robot.py" name="enable_robot" args="-e" /> -->

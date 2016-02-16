@@ -1,7 +1,29 @@
 Baxter Controller Package:
+General Instructions:
+	- Turn on PowerBot
+		- ArnlServer is set to launch at startup (/etc/rc.local), 
+		  listen for the rangefinder click before continuing...
+	- Turn on Baxter
+
+	- Launch MobileEyes 
+		-configure the Map (in menu tools/robotconfiguration)
+	  	 on the remote computer
+
+	- roslaunch your application
+
+Code Structure:
+
+Baxter_Controller.py
+	-> Baxter_Vision.py
+	-> Baxter_Action.py
+		-> PowerBotNavigate
+			->PowerBotClient
+			-> Recognizer
+			-> Detector
+	
 
 
-Programming By Demonstration:
+DEMOS
 
 MIMIC DEMO:
 
@@ -13,3 +35,9 @@ MIMIC DEMO:
 
 Sit in front of camera with no-one else in view.
 Run the above commands in order and control the arm movement/gripper.
+
+
+MISC:
+To Check Serial # of Kinect
+	1) Plug it in
+	2) $ lsusb -v -d 045e:02ae | grep -e "Bus\|iSerial"
