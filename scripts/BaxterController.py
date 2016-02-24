@@ -50,58 +50,14 @@ from sensor_msgs.msg import (
 from subprocess import Popen
 import os
 
+# TODO: add this to launch script along with openni.launch
+# roslaunch baxter_controller baxter_controller.launch
+# rosrun tf static_transform_publisher 0.17 0.075 0.61 0.00 32.0 -3.00 180.0 /base /camera_link 25
+# rosrun tf static_transform_publisher 0.15 0.08 0.56 -0.008 0.08 -0.003 0.5   #better??
 
-class GripperState:
-    def __init__(self, l_r):
-
-        #-----------------------------------------------------------------------------------------#
-        # State Info
-        # gripper info (constantly updated through ros subscribers)
-        self.x = 0.0
-        self.y = 0.0
-        self.z = 0.0
-
-        self.range = 0.0
-        self.force = 0.0
-
-        self.rate = rospy.Rate(10) # 10hz
-        self.l_r = ""
-        #-----------------------------------------------------------------------------------------#
-        # make ROS subscribers for corresponding arm
-        if(l_r == "right"):
-            self.l_r = "right"
-            self.sub_gripperPos = rospy.Subscriber("robot/limb/right/endpoint_state", EndpointState, self.gripperPos_callback)
-            self.sub_gripperRange = rospy.Subscriber("robot/range/right_hand_range/state", Range, self.gripperRange_callback)
-            self.sub_gripperForce = rospy.Subscriber("robot/end_effector/right_gripper/state", EndEffectorState, self.gripperForce_callback)
-
-        elif(l_r == "left"):
-            self.l_r = "left"
-            self.sub_gripperPos = rospy.Subscriber("robot/limb/left/endpoint_state", EndpointState, self.gripperPos_callback)
-            self.sub_gripperRange = rospy.Subscriber("robot/range/left_hand_range/state", Range, self.gripperRange_callback)
-            self.sub_gripperForce = rospy.Subscriber("robot/end_effector/left_gripper/state", EndEffectorState, self.gripperForce_callback)
-
-
-    # callbacks
-    def gripperPos_callback(self, data):
-        self.x = data.pose.position.x
-        self.y = data.pose.position.y
-        self.z = data.pose.position.z
-        #print self.x, self.y, self.z
-
-    def gripperRange_callback(self, data):
-        minVal = data.min_range
-        maxVal = data.max_range
-
-        if data.range > maxVal:
-            self.range = maxVal
-        elif data.range < minVal:
-            self.range = minVal
-        else:
-            self.range = data.range
-
-    def gripperForce_callback(self, data):
-        self.force = float(data.force)
-
+# roslaunch openni_launch openni.launch device_id:=B00361708600048B (downward)
+# roslaunch openni_launch openni.launch device_id:=A00367801249047A (upward)
+# TO GET KINECT ID: lsusb -v -d 045e:02ae | grep -e "Bus\|iSerial"
 
 class BaxterController:
     def __init__(self):
@@ -110,9 +66,6 @@ class BaxterController:
 
         self.my_env = os.environ
         self.openni_process = None
-
-        self.gripperStateLeft = GripperState("left")
-        self.gripperStateRight = GripperState("right")
 
         # Baxter Action Interface
         rospy.loginfo("Initializing Baxter Action Interface")
@@ -131,15 +84,18 @@ class BaxterController:
         rospy.loginfo("Kinect Data Received")
 
         #self.action.moveGripper(selectedGripper = 1, pos = self.vision.r_hand_state, openClose = None)
+        
         #-----------------------------------------------------------#
         # MIMIC DEMO
         #-----------------------------------------------------------#
-        #self.action.mimic(self.vision)
+        self.action.mimic(self.vision)
         #-----------------------------------------------------------#
         '''
         
         self.action.command_retrieve("kyle", "red")
+        #self.action.command_sort()
 
+        #self.action.measureDeformation(1)
 
 
 
@@ -171,7 +127,4 @@ class BaxterController:
 
 
 bx = BaxterController()
-
 rospy.spin()
-
-

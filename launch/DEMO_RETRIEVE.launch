@@ -1,0 +1,19 @@
+ 
+<launch>
+
+	<!-- This should be only used with the understanding that you must manually disable baxter when roslaunch dies using "-d" option -->
+	<node pkg="baxter_tools" type="enable_robot.py" name="enable_robot" args="-e" />	
+	<!-- Launch the trajectory server -->
+	<node pkg="baxter_interface" type="joint_trajectory_action_server.py" name="joint_trajectory_action_server" />
+
+	<!-- Launch openni -->
+	<include file="$(find openni_launch)/launch/openni.launch" >
+		<arg name="device_id" value="B00361708600048B" /> 
+	</include>
+
+	<!-- pull up rviz -->
+	<include file="$(find baxter_moveit_config)/launch/demo_baxter.launch" />
+
+	<!--<node pkg="baxter_controller" type="DEMO_OBJECT_RETRIEVE.py" name="DEMO_RETRIEVE" />-->
+
+</launch>

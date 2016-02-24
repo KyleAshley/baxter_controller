@@ -27,7 +27,7 @@ static Mat norm_0_255(InputArray _src) {
 
 // constructor
 Recognizer::Recognizer(){
-    profile_directory_ = "/home/kyle/catkin_ws/src/baxter_sp/people";
+    profile_directory_ = "/home/baxter/ros/ws_carrt/src/baxter_controller/people";
     if(NAVIGATE == "face")
     {
         cout << "Navigation set to faces" << endl;
@@ -38,7 +38,7 @@ Recognizer::Recognizer(){
         detector_ = Detector("haarcascade_upperbody.xml");
     }
 
-    model_ = createEigenFaceRecognizer(80, 3000.0);
+    model_ = createEigenFaceRecognizer(80, 3400.0);
     num_profiles_ = 4;
     
 

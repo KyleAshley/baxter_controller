@@ -133,11 +133,17 @@ bool PowerBotNavigate::navigateToROI(cv::Point roi_tl, cv::Point roi_br, bool in
         // make the desired coordinates shifted slightly to avoid collision?
 
         pos_.x = (pos_.x * (1000));
-        pos_.z = (pos_.z * 1000) - 500;
-        if(pos_.z < 0) { pos_.z = 0; }
-        
+        pos_.z = (pos_.z * 1000) - 800;
+        //if(pos_.z < 0) { pos_.z = 0; }
+        if(pos_.z < 0) {return true;}
+
+        /*
         if((abs(pos_.x) >= 2500) || (abs(pos_.z) >= 3500) ||
             std::isnan(pos_.x) || std::isnan(pos_.z)) {
+            return false;
+        */
+
+        if(std::isnan(pos_.x) || std::isnan(pos_.z)) {
             return false;
 
         } else {
@@ -161,7 +167,7 @@ bool PowerBotNavigate::navigateToROI(cv::Point roi_tl, cv::Point roi_br, bool in
             }
 
             // if latest data deviates enough from current navigation, add waypoint
-            if((pos_.x >= waypoints_.front().x + 100 || pos_.x <= waypoints_.front().x - 100) || (pos_.z >= waypoints_.front().z + 100 || pos_.z <= waypoints_.front().z - 100))
+            if((pos_.x >= waypoints_.front().x + 200 || pos_.x <= waypoints_.front().x - 200) || (pos_.z >= waypoints_.front().z + 200 || pos_.z <= waypoints_.front().z - 200))
             {
                  ROS_INFO("Adding Waypoint");
                 waypoints_.push_back(pos_);
@@ -169,8 +175,8 @@ bool PowerBotNavigate::navigateToROI(cv::Point roi_tl, cv::Point roi_br, bool in
 
             pbClient_.requestUpdate();
 
-            // if front WP is reached or PB stopped
-            if(((pbClient_.pbX <= waypoints_.front().x + 100 && pbClient_.pbX >= waypoints_.front().x - 100) && (pbClient_.pbY <= waypoints_.front().z + 100 && pbClient_.pbY >= waypoints_.front().z - 100)) || waypoints_.size() > 10)
+            // if front WP is reached or PB stopped, go to next waypoint
+            if(((pbClient_.pbX <= waypoints_.front().x + 500 && pbClient_.pbX >= waypoints_.front().x - 500) && (pbClient_.pbY <= waypoints_.front().z + 500 && pbClient_.pbY >= waypoints_.front().z - 500)) || waypoints_.size() > 2)
             {   
                 ROS_INFO("Waypoint Reached");
                 ROS_INFO("Current Location: {X,Y} = { %f, %f }", pbClient_.pbX, pbClient_.pbY);
@@ -182,8 +188,8 @@ bool PowerBotNavigate::navigateToROI(cv::Point roi_tl, cv::Point roi_br, bool in
                 else
                 {
                     ROS_INFO("Moving to Next Waypoint: {X,Y} = { %f, %f }", waypoints_.front().x, waypoints_.front().z);
-                    pbClient_.moveTo(waypoints_.back().x, waypoints_.back().z);
-                    waypoints_.clear();
+                    pbClient_.moveTo(waypoints_.front().x, waypoints_.front().z);
+                    //waypoints_.clear();
                     return false;
                 }
             }
@@ -197,10 +203,32 @@ bool PowerBotNavigate::navigateToROI(cv::Point roi_tl, cv::Point roi_br, bool in
 
 void PowerBotNavigate::navigateToDetectionCb(const std_msgs::String::ConstPtr& msg)
 {
+    ROS_INFO("Starting Navigation to Person Routine");
     // get desired profile ID from command message
-    pcc_ = new PointCloudCapture("A00367801249047A");
-    pcc_->startCapture();
-    pcc_->getFrame(kin_data_);
+    while(kin_data_.srcImg.size().width == 0 || kin_data_.srcImg.size().height == 0)
+    {
+
+        try
+        {
+            pcc_ = new PointCloudCapture("A00367801249047A");
+            if(pcc_ == NULL)
+                throw 2;
+            else
+            {
+                pcc_->startCapture();
+                pcc_->getFrame(kin_data_);
+            }
+        
+            if(kin_data_.srcImg.size().width == 0 || kin_data_.srcImg.size().height == 0)
+                throw 1;
+            
+        }
+        catch(...)
+        {
+            ROS_INFO("FAILED TO PointCloudCapture... retrying");
+            continue;
+        }
+    }
 
     curr_target_.x = -1.0;
     curr_target_.z = -1.0;
@@ -213,7 +241,7 @@ void PowerBotNavigate::navigateToDetectionCb(const std_msgs::String::ConstPtr& m
     stringstream ss;
     ss << "Received Command to navigate to person" << desired_id << "\n";
     string rx_msg = ss.str();
-    ROS_INFO(rx_msg.c_str());
+    //ROS_INFO(rx_msg.c_str());
 
     //recognizer_.update();         // update PCA model with training data
     //ROS_INFO("Updating Recognizer...");
@@ -225,6 +253,7 @@ void PowerBotNavigate::navigateToDetectionCb(const std_msgs::String::ConstPtr& m
 
     while(!destination_reached_)
     {
+        ROS_INFO("Getting Kinect Data");
         //status_msg.data = "0";
         //pub_personReached_.publish(status_msg);
         pcc_->getFrame(kin_data_);
@@ -242,14 +271,15 @@ void PowerBotNavigate::navigateToDetectionCb(const std_msgs::String::ConstPtr& m
 
         if( !kin_data_.srcImg.empty() )
         {
+            ROS_INFO("Starting Recognition");
             recognizer_.recognizeDetections(kin_data_.srcImg, true);
-        
+            
             // iterate over recognition labels and find any matches
-            if(strcmp(NAVIGATE,"face"))
+            if(strcmp(NAVIGATE,"face") == 0)
             {
                 for(int i = 0; i < recognizer_.prediction_ids_.size(); i++)
                 {
-                    ROS_INFO("Found: " + recognizer_.prediction_ids_[i]);
+                    //ROS_INFO("Found: " + recognizer_.prediction_ids_[i]);
                     if(recognizer_.prediction_ids_[i] == desired_id)
                     {
                         ROS_INFO("Navigating!");
@@ -264,7 +294,7 @@ void PowerBotNavigate::navigateToDetectionCb(const std_msgs::String::ConstPtr& m
                     }
                 }
             }
-            else if(strcmp(NAVIGATE, "body"))
+            else if(strcmp(NAVIGATE, "body") == 0)
             {
                 ROS_INFO("Navigating!");
                 Rect face_roi = (recognizer_.detector_).detections_[0];         // retrieve face region
@@ -313,7 +343,7 @@ void PowerBotNavigate::navigateToLocationCb(const std_msgs::Int32MultiArray::Con
     stringstream ss;
     ss << "Received Command to navigate position: (" << curr_target_.x << " , " << curr_target_.z << ")\n";
     string rx_msg = ss.str();
-    ROS_INFO(rx_msg.c_str());
+    //ROS_INFO(rx_msg.c_str());
 
     destination_reached_ = false;
     std_msgs::String status_msg;
@@ -329,27 +359,28 @@ void PowerBotNavigate::navigateToLocationCb(const std_msgs::Int32MultiArray::Con
         ROS_INFO("Current Location: {X,Y} = { %f, %f }", pbClient_.pbX, pbClient_.pbY);
         
         // transform destination into world frame
-        /*pbClient_.transformPoints(pos_.x, pos_.z);
-        ROS_INFO("Desired PowerBot Coordinates {X,Y} = { %f, %f }\n", pos_.x, pos_.z);*/
-
-        ROS_INFO("Plotting New Course");
+        /*
+        pbClient_.transformPoints(pos_.x, pos_.z);
+        ROS_INFO("Desired PowerBot Coordinates {X,Y} = { %f, %f }\n", pos_.x, pos_.z);
+        */
+        ROS_INFO("Plotting New Course to: { %f, %f }", pos_.x, pos_.z);
         // move powerbot to destination and busy wait  
         pbClient_.moveTo(pos_.x, pos_.z);
-        usleep(5000000);
+        usleep(1000000);
 
     
         ROS_INFO("Navigating to Destination");
         pbClient_.requestUpdate();
         // if powerbot's current position is close to the current position of the person, return
         //if((pbClient_.pbX <= curr_target_.x + 200 && pbClient_.pbX >= curr_target_.x - 200) && (pbClient_.pbY <= curr_target_.z + 200 && pbClient_.pbY >= curr_target_.z - 200))
-        while((abs(pbClient_.pbX) >= abs(pos_.x) + 150 || abs(pbClient_.pbX) <= abs(pos_.x) - 150) || (abs(pbClient_.pbY) >= abs(pos_.z) + 150 || abs(pbClient_.pbY) <= abs(pos_.z) - 150))
+        while((pbClient_.pbX >= pos_.x + 150 || pbClient_.pbX <= pos_.x - 150) || (pbClient_.pbY >= pos_.z + 150 || pbClient_.pbY <= pos_.z - 150))
         {
             // addded
             if(pbClient_.pbVel == 0.0)
             {
                 ROS_INFO("Current Velocity: {Vel,LatVel} = { %f, %f }", pbClient_.pbVel, pbClient_.pbLatVel);
                 pbClient_.moveTo(pos_.x, pos_.z);
-                usleep(5000000);
+                usleep(1000000);
             }
 
             pbClient_.requestUpdate();
@@ -358,20 +389,31 @@ void PowerBotNavigate::navigateToLocationCb(const std_msgs::Int32MultiArray::Con
         }
 
         ROS_INFO("Within Proximity of Destination");    
-        usleep(5000000);
+        usleep(500000);
         // rotate to face the proper direction
         pbClient_.requestUpdate();
         pbClient_.rotateTo(target_theta_);
-
-        while((abs(pbClient_.pbTh) >= abs(target_theta_) + 7) || (abs(pbClient_.pbTh) <= abs(target_theta_) - 7))
+        usleep(1000000);
+        pbClient_.requestUpdate();
+        int num_off = 0;
+        while((pbClient_.pbTh >= target_theta_ + 7) || (pbClient_.pbTh <= target_theta_ - 7))
         {
             pbClient_.requestUpdate();
             // addded
             if(pbClient_.pbRotVel == 0.0)
             {
-                ROS_INFO("Current Velocity: {RotVel} = { %f}", pbClient_.pbRotVel);
-                pbClient_.rotateTo(target_theta_);
-                usleep(5000000);
+                if(num_off > 6)
+                {
+                    ROS_INFO("TOO MANY ERRORS, Breaking");
+                    break;
+                }
+                num_off++;
+                ROS_INFO("Current Velocity: {RotVel} = { %f}... Num off: {%d}", pbClient_.pbRotVel, num_off);
+                if(pbClient_.pbTh <= target_theta_)
+                    pbClient_.rotateTo(target_theta_ + num_off);
+                else
+                    pbClient_.rotateTo(target_theta_ - num_off);
+                usleep(500000);
             }
             usleep(500000);
             ROS_INFO("Current Heading: = %f", pbClient_.pbTh);
@@ -418,7 +460,7 @@ void PowerBotNavigate::rotationCb(const std_msgs::Int32MultiArray::ConstPtr& coo
     stringstream ss;
     ss << "Received Command to rotate: (" << target_theta_ << " degrees)\n";
     string rx_msg = ss.str();
-    ROS_INFO(rx_msg.c_str());
+    //ROS_INFO(rx_msg.c_str());
 
     destination_reached_ = false;
     std_msgs::String status_msg;
@@ -435,10 +477,28 @@ void PowerBotNavigate::rotationCb(const std_msgs::Int32MultiArray::ConstPtr& coo
         // rotate to face the proper direction
         pbClient_.requestUpdate();
         pbClient_.rotateTo(target_theta_);
-
-        while((abs(pbClient_.pbTh) >= abs(target_theta_) + 7) || (abs(pbClient_.pbTh) <= abs(target_theta_) - 7))
+        pbClient_.requestUpdate();
+        usleep(1000000);
+        int num_off = 0;
+        while((pbClient_.pbTh >= target_theta_ + 7) || (pbClient_.pbTh <= target_theta_ - 7))
         {
             pbClient_.requestUpdate();
+            // addded
+            if(pbClient_.pbRotVel == 0.0)
+            {
+                if(num_off > 6)
+                {
+                    ROS_INFO("TOO MANY ERRORS, Breaking");
+                    break;
+                }
+                num_off++;
+                ROS_INFO("Current Velocity: {RotVel} = { %f}... Num off: {%d}", pbClient_.pbRotVel, num_off);
+                if(pbClient_.pbTh <= target_theta_)
+                    pbClient_.rotateTo(target_theta_ + num_off);
+                else
+                    pbClient_.rotateTo(target_theta_ - num_off);
+                usleep(500000);
+            }
             usleep(500000);
             ROS_INFO("Current Heading: = %f", pbClient_.pbTh);
         }

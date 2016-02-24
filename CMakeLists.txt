@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   rospy
   std_msgs
+  tf_conversions
 )
 
 
@@ -21,6 +22,7 @@ find_package(Boost REQUIRED )
 #find_package(rosaria REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(PCL 1.7 REQUIRED)
+find_package(Eigen REQUIRED)
  
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -91,7 +93,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES baxter_sp 
   CATKIN_DEPENDS roscpp rospy std_msgs pcl_msgs pcl_conversions pcl_ros cv_bridge image_transport
-  DEPENDS system_lib 
+  DEPENDS system_lib Eigen tf_conversions
 )
 
 ###########
@@ -117,6 +119,7 @@ include_directories(
   ${ARIA_INCLUDE_DIR}
   ${ARIANETWORKING_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
 
   #${NUMPY_INCLUDE_DIR}
 )
@@ -136,11 +139,11 @@ add_executable(point_cloud_capture_node src/PointCloudCapture_Pub.cpp
 
 add_executable(gesture_tracker src/gestureTracker.cpp src/util.cpp)
 
-add_executable(Recognizer src/Recognizer.cpp
-		src/Detector.cpp
-		src/PointCloudCapture/PointCloudCapture.cpp
-		src/PointCloudCapture/InputData.cpp
-)
+#add_executable(Recognizer src/Recognizer.cpp
+#		src/Detector.cpp
+#		src/PointCloudCapture/PointCloudCapture.cpp
+#		src/PointCloudCapture/InputData.cpp
+#)
 
 add_executable(ObjectColors src/ObjectColors.cpp
 )
@@ -152,11 +155,19 @@ add_executable(PowerBotNavigate src/PowerBotNavigate.cpp
 		src/PowerBotClient.cpp src/PointCloudCapture/InputData.cpp
 )
 
+add_executable(createKinectToWorldMat src/createKinectToWorldMat.cpp
+)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(baxter_sp_node baxter_sp_generate_messages_cpp)
 
 link_directories( ${ARIA_LIBRARY} )
+
+target_link_libraries(createKinectToWorldMat
+	${catkin_LIBRARIES}
+	${Eigen_INCLUDE_DIRS}
+)
 
 target_link_libraries(PowerBotNavigate
    ${catkin_LIBRARIES}
@@ -196,12 +207,6 @@ target_link_libraries(gesture_tracker
 #   libvtkCommon.so libvtkFiltering.so 
 # )
 
-target_link_libraries(Recognizer
-   ${catkin_LIBRARIES}
-   ${OpenCV_LIBS}
-   ${PCL_LIBRARIES}
-   libvtkCommon.so libvtkFiltering.so 
- )
 
 
 #############

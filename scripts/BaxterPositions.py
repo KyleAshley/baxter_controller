@@ -23,7 +23,12 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-default_table = [400, -1050, 180]
+joint_names = {
+	'left': ['left_e0', 'left_e1', 'left_s0', 'left_s1', 'left_w0', 'left_w1', 'left_w2'],
+	'right': ['right_e0', 'right_e1', 'right_s0', 'right_s1', 'right_w0', 'right_w1', 'right_w2']
+}
+
+default_table = [199, 979, 90]
 
 normalRot = [-0.014345, 0.70062, -0.025133, 0.71295]
 
@@ -43,17 +48,15 @@ trashRot = [-0.014345, 0.70062, -0.025133, 0.71295]
 testPos = [0.72195, 0.49096, 0.28836]
 testRot = [-0.014345, 0.70062, -0.025133, 0.71295]
 
-lowerLeftSidePos = [0.455, 0.707, -0.012]
+lowerLeftSidePos_forward = [0.505, 0.707, -0.012]
+lowerLeftSidePos_backward = [0.405, 0.707, -0.012]
 lowerLeftSideRot = [0.050, 0.839, -0.012, 0.5]
 
-lowerRightSidePos = [0.455, -0.707, -0.012]
+lowerRightSidePos_forward = [0.505, -0.707, -0.012]
+lowerRightSidePos_backward = [0.405, -0.707, -0.012]
 lowerRightSideRot = [0.0020, 0.875, -0.012, 0.5]
 
 
-joint_names = {
-	'left': ['left_e0', 'left_e1', 'left_s0', 'left_s1', 'left_w0', 'left_w1', 'left_w2'],
-	'right': ['right_e0', 'right_e1', 'right_s0', 'right_s1', 'right_w0', 'right_w1', 'right_w2']
-}
 
 # object scanning
 ref_pos_r1 = dict(zip(joint_names['right'],[ 0.1537, 1.6183, 0.4337, -0.5184, -1.8795, -1.57, 0.3662]))

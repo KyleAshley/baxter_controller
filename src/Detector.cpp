@@ -11,7 +11,7 @@ Detector::Detector()
 
 Detector::Detector(string xml_name){
       window_name_ = "detection";
-      cascade_name_ = "/home/kyle/catkin_ws/src/baxter_sp/classifiers/" + xml_name;    // name of .xml classifier
+      cascade_name_ = "/home/baxter/ros/ws_carrt/src/baxter_controller/classifiers/" + xml_name;    // name of .xml classifier
 };
 
 Detector::~Detector(){};

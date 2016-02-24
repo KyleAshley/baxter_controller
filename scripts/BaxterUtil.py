@@ -38,8 +38,7 @@ def removePCDs(path):
         for currentFile in files:
             exts=('.pcd')
             if any(currentFile.lower().endswith(ext) for ext in exts):
-                if(DEBUG):
-                    print "Removing file: " + currentFile
+                print "Removing file: " + currentFile
                 os.remove(os.path.join(root, currentFile))
 
 def speak(message, wait=True):

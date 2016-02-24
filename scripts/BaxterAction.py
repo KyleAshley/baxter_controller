@@ -4,6 +4,7 @@ import BaxterMoveIt
 import BaxterPositions
 import baxter_interface
 from BaxterUtil import *
+import numpy as np
 
 from baxter_interface import CHECK_VERSION
 from baxter_core_msgs.msg import EndpointState
@@ -58,9 +59,61 @@ import OPEAssist
 
 OPENNI_CMD = "roslaunch openni_launch openni.launch"
 COLORS_CMD = "rosrun baxter_controller ObjectColors"
-OPE_DIR = "/home/kyle/catkin_ws/src/baxter_controller/scripts/OPE-Release/"
-BAXTER_DIR = "/home/kyle/catkin_ws/src/baxter_controller/scripts/"
+OPE_DIR = "/home/baxter/ros/ws_carrt/src/baxter_controller/scripts/OPE-Release/"
 KILL_XNSENSOR_CMD = "killall killXnSensorServer"
+
+class GripperState:
+    def __init__(self,l_r):
+
+        #-----------------------------------------------------------------------------------------#
+        # State Info
+        # gripper info (constantly updated through ros subscribers)
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
+
+        self.range = 0.0
+        self.force = 0.0
+
+        self.rate = rospy.Rate(10) # 10hz
+        self.l_r = ""
+        #-----------------------------------------------------------------------------------------#
+        # make ROS subscribers for corresponding arm
+        if(l_r == "right"):
+            self.l_r = "right"
+            self.sub_gripperPos = rospy.Subscriber("robot/limb/right/endpoint_state", EndpointState, self.gripperPos_callback)
+            self.sub_gripperRange = rospy.Subscriber("robot/range/right_hand_range/state", Range, self.gripperRange_callback)
+            self.sub_gripperForce = rospy.Subscriber("robot/end_effector/right_gripper/state", EndEffectorState, self.gripperForce_callback)
+
+        elif(l_r == "left"):
+            self.l_r = "left"
+            self.sub_gripperPos = rospy.Subscriber("robot/limb/left/endpoint_state", EndpointState, self.gripperPos_callback)
+            self.sub_gripperRange = rospy.Subscriber("robot/range/left_hand_range/state", Range, self.gripperRange_callback)
+            self.sub_gripperForce = rospy.Subscriber("robot/end_effector/left_gripper/state", EndEffectorState, self.gripperForce_callback)
+
+
+    # callbacks
+    def gripperPos_callback(self, data):
+        self.x = data.pose.position.x
+        self.y = data.pose.position.y
+        self.z = data.pose.position.z
+        #print self.x, self.y, self.z
+
+    def gripperRange_callback(self, data):
+        minVal = data.min_range
+        maxVal = data.max_range
+
+        if data.range > maxVal:
+            self.range = maxVal
+        elif data.range < minVal:
+            self.range = minVal
+        else:
+            self.range = data.range
+
+    def gripperForce_callback(self, data):
+        self.force = float(data.force)
+        #print self.l_r,  self.force
+
 
 class BaxterArmTrajectory:
     def __init__(self):
@@ -103,6 +156,9 @@ class BaxterAction:
         # Grippers
         self.leftGripper = baxter_interface.Gripper('left', CHECK_VERSION)
         self.rightGripper = baxter_interface.Gripper('right', CHECK_VERSION)
+
+        self.rightGripperState = GripperState(l_r='right')
+        self.leftGripperState = GripperState(l_r='left')
 
         # Limbs
         self.leftLimb = baxter_interface.Limb('left')
@@ -350,9 +406,9 @@ class BaxterAction:
     # MIMIC DEMO
     # -------------------------------------------------------------------------------------------------------------------------#
     '''
-    def mimic(self, vision):
+    def mimic(self):
         self.rs.enable()
-        #self.resetArms()
+        self.resetArms()
         self.mimic_timer = rospy.Timer(rospy.Duration(1.0 / self.ik_rate), self.mimic_callback)
         #rate = rospy.Rate(self.detection_window_size)
         rate = rospy.Rate(30)               # hz
@@ -480,7 +536,7 @@ class BaxterAction:
             lh_yaw = (-math.pi/2.0 + lh_yaw)
             #lh_pitch = -(math.pi/4.0 - (lh_pitch - math.pi))
 
-            print "Orig: ", r_rot[2], "Right: ", rh_yaw
+            #print "Orig: ", r_rot[2], "Right: ", rh_yaw
             #print -1.0*math.pi + rh_roll, 0.5*math.pi + rh_pitch, -1.0*math.pi + rh_yaw
             
             #self.set_left_coords(lh_x, lh_y, lh_z, ep=0.5*math.pi + 3.0*(lh_pitch+0.1), ey=-1.0*math.pi - (lh_roll/2.0))
@@ -496,8 +552,8 @@ class BaxterAction:
             #self.set_left_coords(lh_x, lh_y, lh_z, ey=math.pi*-1.0 - 6.0*(lh_yaw))
 
             #self.set_left_coords(lh_x, lh_y, lh_z, lh_roll, lh_pitch, lh_yaw)
-            self.set_right_coords(rh_x, rh_y, rh_z)
-            self.set_right_coords(lh_x, lh_y, lh_z)
+            self.set_left_coords(rh_x, rh_y, rh_z)
+            self.set_left_coords(lh_x, lh_y, lh_z)
             #self.set_left_coords(lh_x, lh_y, lh_z, ep=rh_pitch, ey=rh_yaw)
             #self.set_right_coords(rh_x, rh_y, rh_z, ep=lh_pitch, ey=lh_yaw)
 
@@ -704,7 +760,7 @@ class BaxterAction:
     # -------------------------------------------------------------------------------------------------------------------------#
     def locationReached_callback(self, data):
         rospy.loginfo(rospy.get_caller_id() + "--Destination Status: %s\n", data.data)
-        speak("Destination Reached")
+        #speak("Destination Reached")
         if data.data is "1":
             self.location_reached = True
         else:
@@ -712,7 +768,7 @@ class BaxterAction:
 
     def rotationReached_callback(self, data):
         rospy.loginfo(rospy.get_caller_id() + "--Destination Status: %s\n", data.data)
-        speak("Rotation Reached")
+        #speak("Rotation Reached")
         if data.data is "1":
             self.rotation_reached = True
         else:
@@ -731,37 +787,265 @@ class BaxterAction:
                 # speak("Could not move to pre-object position!")
                 return False
 
-    def command_retrieve(self, personStr, color):
+    def gotoObject(self, objectLoc, objectRot, objectNum):
+        # PRE-OBJECT POSE
+        preObjectLoc = copy.deepcopy(objectLoc)
+        preObjectLoc[0] = preObjectLoc[0] - 0.2 # subtract 0.1 meters in x
+
+        # OBJECT POSE (RAISED)
+        objectRaisedLoc = copy.deepcopy(objectLoc)
+        objectRaisedLoc[2] = objectRaisedLoc[2] + 0.2
+
+        raisedPreObjectLoc = copy.deepcopy(objectLoc)
+        raisedPreObjectLoc[0] = raisedPreObjectLoc[0] - 0.1
+        raisedPreObjectLoc[2] = raisedPreObjectLoc[2] + 0.2
+
+        # Extend POSE (RAISED)
+        extendRaisedLoc = copy.deepcopy(objectRaisedLoc)
+        extendRaisedLoc[0] = extendRaisedLoc[0] + 0.2
+
+        if objectLoc[1] < 0:
+            baxterArm = 1
+        else:
+            baxterArm = 0
+
+    
+        print "Going to pre-object position...."
+        # speak("Going to pre-object position....")
+        print preObjectLoc
+
+        preObjectPlan = self.moveit.createPathPlan(preObjectLoc, baxterArm, BaxterPositions.normalRot)
+        self.moveit.slowPlanVelocity(preObjectPlan)
+        self.executePlan(baxterArm, preObjectPlan)
+
+        self.moveit.scene.remove_world_object("OBJECT" + str(objectNum))
+        rospy.sleep(1)
+
+        print "Opening gripper...."
+        # speak("Opening gripper....")
+        self.moveGripper(baxterArm, pos = None, openClose = "open")
+        #self.gripperAction(baxterArm, openClose = "open")
         
-        rospy.loginfo("Retreive Object Starting")
+        print "Going to object position...."
+        # speak("Going to object position....")
+        objectPlan = self.moveit.createPathPlan(objectLoc, baxterArm, BaxterPositions.normalRot)
+        #self.moveit.slowPlanVelocity(objectPlan)
+        self.executePlan(baxterArm, objectPlan)
+
+        return True
+
+    # bring arms to lower side 
+    def gotoSide(self, SideLocation, SideRotation, leftRight):
+
+        if leftRight == "left" or leftRight == "Left":
+            baxterArm = 1
+            print "Going to Lower Left Side"
+        elif leftRight == "right" or leftRight == "Right":
+            print "Going to Lower Right Side"
+            baxterArm = 0
+        else:
+            print "Not a Valid Side, must be <left> or <right>"
+            return False
+
+        lowerSideLocLocal = copy.deepcopy(SideLocation)
+        lowerSideRotLocal = copy.deepcopy(SideRotation)
+
+        print SideLocation
+
+        lowerSidePlan = self.moveit.createPathPlan(lowerSideLocLocal, baxterArm, lowerSideRotLocal)
+        self.executePlan(baxterArm, lowerSidePlan)
+        rospy.sleep(1)
+
+        return True
+
+    def goAwayFromObject(self, objectLoc, objectRot, objectNum):
+        # PRE-OBJECT POSE
+        preObjectLoc = copy.deepcopy(objectLoc)
+        preObjectLoc[0] = preObjectLoc[0] - 0.2 # subtract 0.1 meters in x
+
+        # OBJECT POSE (RAISED)
+        objectRaisedLoc = copy.deepcopy(objectLoc)
+        objectRaisedLoc[2] = objectRaisedLoc[2] + 0.2
+
+        raisedPreObjectLoc = copy.deepcopy(objectLoc)
+        raisedPreObjectLoc[0] = raisedPreObjectLoc[0] - 0.1
+        raisedPreObjectLoc[2] = raisedPreObjectLoc[2] + 0.2
+
+        # Extend POSE (RAISED)
+        extendRaisedLoc = copy.deepcopy(objectRaisedLoc)
+        extendRaisedLoc[0] = extendRaisedLoc[0] + 0.2
+
+        if objectLoc[1] < 0:
+            baxterArm = 1
+        else:
+            baxterArm = 0
+
+        print "Going to object (raised) position...."
+        # speak("Going to object (raised) position....")
+        objectRaisedPlan = self.moveit.createPathPlan(objectRaisedLoc, baxterArm, BaxterPositions.normalRot)
+        self.moveit.slowPlanVelocity(objectRaisedPlan)
+        self.executePlan(baxterArm, objectRaisedPlan)
+
+        print "Going to raised pre-object position...."
+        # speak("Going to pre-object position....")
+        print raisedPreObjectLoc
+
+        raisedPreObjectPlan = self.moveit.createPathPlan(raisedPreObjectLoc, baxterArm, BaxterPositions.normalRot)
+        self.moveit.slowPlanVelocity(raisedPreObjectPlan)
+        self.executePlan(baxterArm, raisedPreObjectPlan)
+        rospy.sleep(1)
+
+        self.goToWaiting(baxterArm)
+        rospy.sleep(1)
+        
+        return True   
+
+    def measureDeformation(self, baxterArm):
+        print "Closing gripper...."
+        
+        # speak("Opening gripper....")
+        # go to initial location
+        pos = 100
+        force = 0.0
+
+        if baxterArm == 1:
+            gripper = self.leftGripper
+            gripperState = self.leftGripperState
+        else:
+            gripper = self.rightGripper
+            gripperState = self.rightGripperState
+
+        gripper.command_position(pos)
+        rospy.sleep(1)
+    
+        print "Finding initial position"
+        while(gripperState.force <= 3 and pos > 0):
+            gripper.command_position(pos)
+            pos -= 1
+            rospy.sleep(0.1)
+            
+        contact = pos
+        print "encountered at:", contact
+        gripper.command_position(contact-10)
+        # close gripper all the way, get force and pos deltas
+        dx=0
+        forces = []
+        while(pos > 0):
+            dx+=1
+            pos = contact-dx
+            gripper.command_position(pos)
+            forces.append(gripperState.force)
+            rospy.sleep(0.1)
+
+        gripper.command_position(100)
+        print forces
+        mean = np.mean(forces)
+        std = np.std(forces)
+        print mean, std
+            
+        return mean
+
+    def graspObject(self, objectLoc, objectRot, objectNum):
+        # PRE-OBJECT POSE
+        preObjectLoc = copy.deepcopy(objectLoc)
+        preObjectLoc[0] = preObjectLoc[0] - 0.2 # subtract 0.2 meters in x
+
+        # OBJECT POSE (RAISED)
+        objectRaisedLoc = copy.deepcopy(objectLoc)
+        objectRaisedLoc[2] = objectRaisedLoc[2] + 0.2
+
+        raisedPreObjectLoc = copy.deepcopy(objectLoc)
+        raisedPreObjectLoc[0] = raisedPreObjectLoc[0] - 0.2
+        raisedPreObjectLoc[2] = raisedPreObjectLoc[2] + 0.2
+
+        # Extend POSE (RAISED)
+        extendRaisedLoc = copy.deepcopy(objectRaisedLoc)
+        extendRaisedLoc[0] = extendRaisedLoc[0]
+
+        gripperState = None
+        if objectLoc[1] < 0:
+            baxterArm = 1
+            gripperState = self.rightGripperState
+        else:
+            baxterArm = 0
+            gripperState = self.leftGripperState
+
+
+        vertAdjustRes = 0.05
+        vertAdjust = 0.0
+        tryRaised = 0.0                       # try to raise the gripper to get a successful plan
+        while(gripperState.force == 0):
+
+            # modify pre-object pose to try to move higher and avoid collisions, incrementally increase vertical position
+            preObjectLoc[0] = preObjectLoc[0] + vertAdjustRes*tryRaised
+            tryRaised+=1.0
+
+            print "Opening gripper...."
+            # speak("Opening gripper....")
+            self.moveGripper(baxterArm, pos = None, openClose = "open")
+            #self.gripperAction(baxterArm, openClose = "open")
+            rospy.sleep(1)
+
+            print "Going to pre-object position...."
+            # speak("Going to pre-object position....")
+            print preObjectLoc
+
+            preObjectPlan = self.moveit.createPathPlan(preObjectLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(preObjectPlan)
+            self.executePlan(baxterArm, preObjectPlan)
+
+            self.moveit.scene.remove_world_object("OBJECT" + str(objectNum))
+            rospy.sleep(1)
+            
+            print "Going to object position...."
+            # speak("Going to object position....")
+            objectPlan = self.moveit.createPathPlan(objectLoc, baxterArm, BaxterPositions.normalRot)
+            #self.moveit.slowPlanVelocity(objectPlan)
+            self.executePlan(baxterArm, objectPlan)
+            rospy.sleep(1)
+
+            print "Closing gripper..."
+            # speak("Closing gripper...")
+            self.moveGripper(baxterArm, pos = None, openClose = "close")
+            #self.gripperAction(baxterArm, openClose = "close")
+            rospy.sleep(1)
+
+            print "Going to object (raised) position...."
+            # speak("Going to object (raised) position....")
+            objectRaisedPlan = self.moveit.createPathPlan(objectRaisedLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(objectRaisedPlan)
+            self.executePlan(baxterArm, objectRaisedPlan)
+
+            print "Going to raised pre-object position...."
+            # speak("Going to pre-object position....")
+            print raisedPreObjectLoc
+
+            raisedPreObjectPlan = self.moveit.createPathPlan(raisedPreObjectLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(raisedPreObjectPlan)
+            self.executePlan(baxterArm, raisedPreObjectPlan)
+            rospy.sleep(1)
+
+            '''
+            self.goToWaiting(baxterArm)
+            rospy.sleep(1)
+            '''
+
+        # return the arm it was grasped with
+        return baxterArm 
+
+    def command_grasp_object(self, color):
+        rospy.loginfo("Retreive Grasp Starting")
 
         # reset arms
         self.goToWaiting(0)
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
         self.goToWaiting(1)
-        rospy.sleep(1)
-
-        '''
-        # navigate to table
-        tablePos = Int32MultiArray()
-        tablePos.data = BaxterPositions.default_table
-
-        self.pub_locNav.publish(tablePos)
-        while self.location_reached != True:
-            pass
-        rospy.loginfo("Arrived at default object location coordinates")
-        self.location_reached = False 
-        '''
-
-        # speak("Beggining Retrieval Task")
-
-        # Launch Openni Drivers
-        #self.openni_process = Popen(OPENNI_CMD, shell=True, preexec_fn=os.setsid)
+        #rospy.sleep(1)
 
         #Remove Old PCDs
         removePCDs(OPE_DIR)
-        rospy.sleep(2)
+        #rospy.sleep(1)
         
         #if self.gotoWaiting():
         #*********************************************************************************#
@@ -773,26 +1057,24 @@ class BaxterAction:
         # Run OPE
         OPEAssist.runOPE()
         OPEAssist.loadOPEResults()
-        rospy.sleep(2)
+        #rospy.sleep(1)
 
-        OPEAssist.showOPEResults()
-        rospy.sleep(2)
-        
         # Get OPE Object Colors
         colors_process = Popen(COLORS_CMD, shell=True, preexec_fn=os.setsid)
-        rospy.sleep(2)
+        #rospy.sleep(1)
 
         # Colored Object Selection
         #TODO: Obtain color form command string
-        #desired_color = color
-        desired_color = "red"
+        desired_color = color
+        #desired_color = "white"
         objectNum = -1
+        baxterArm = 0
 
         colorFile = open(OPE_DIR + "ObjectColors.txt")
         content = colorFile.readlines()
         print content
 
-        i  = 0
+        i = 0
         for colors in content:
             objColor = colors.strip("'").rstrip()
 
@@ -806,6 +1088,300 @@ class BaxterAction:
         #*********************************************************************************#
         # TODO: transform based on kinect
         #*********************************************************************************#
+        # Show OPE Results, Grab the Object
+        objectLoc = None
+        if OPEAssist.objCount > 0:
+
+            rospy.loginfo("Adding Table Collision Model")
+            #ADD Table Collision Model
+            self.moveit.addObject("TABLE",
+                                  OPEAssist.tablePos,
+                                  OPEAssist.tableSize)
+
+            # ADD Object Collision Models
+            for x in OPEAssist.objList:
+                self.moveit.addObject("OBJECT" + str(x['objNumber']),
+                                      x['objPos'],
+                                      x['objSize'])
+
+            #rospy.sleep(1)
+            #OPEAssist.showOPEResults()
+            '''
+            objectLoc = OPEAssist.objList[objectNum]['objPos']
+            baxterArm = self.graspObject(objectLoc, [0, 0, 0, 0], objectNum)
+
+            for i in range(OPEAssist.objCount):
+                self.moveit.scene.remove_world_object("OBJECT" + str(i))
+            self.moveit.scene.remove_world_object("TABLE")
+            '''
+            #self.bringToSide( BaxterPositions.lowerRightSidePos, BaxterPositions.lowerRightSideRot, leftRight = "right")
+            #self.bringToSide( BaxterPositions.lowerLeftSidePos, BaxterPositions.lowerLeftSideRot, leftRight = "left")
+        #*********************************************************************************#
+        else:
+            rospy.loginfo("No Objects Detected")
+            return 
+
+    def command_retrieve(self, personStr, color):
+        
+        rospy.loginfo("Retreive Object Starting")
+
+        # reset arms
+        self.goToWaiting(0)
+        #rospy.sleep(1)
+
+        self.goToWaiting(1)
+        #rospy.sleep(1)
+
+        # navigate to table
+        tablePos = Int32MultiArray()
+        tablePos.data = BaxterPositions.default_table
+
+        self.pub_locNav.publish(tablePos)
+        while self.location_reached != True:
+            pass
+        rospy.loginfo("Arrived at default object table coordinates")
+        self.location_reached = False 
+        
+        # Launch Openni Drivers (not needed on lab laptop?)
+        #self.openni_process = Popen(OPENNI_CMD, shell=True, preexec_fn=os.setsid)
+
+        #Remove Old PCDs
+        removePCDs(OPE_DIR)
+        #rospy.sleep(1)
+        
+        #if self.gotoWaiting():
+        #*********************************************************************************#
+        # Object Pose Estimation Selection (WORKING)
+        # - Estimate Object Poses 
+        # - Save OPE Results to txt
+        # - Average Hues and save to color file
+
+        # Run OPE
+        OPEAssist.runOPE()
+        OPEAssist.loadOPEResults()
+        #rospy.sleep(1)
+
+        #OPEAssist.showOPEResults()
+        #rospy.sleep(2)
+        
+        # Get OPE Object Colors
+        colors_process = Popen(COLORS_CMD, shell=True, preexec_fn=os.setsid)
+        #rospy.sleep(1)
+
+        # Colored Object Selection
+        #TODO: Obtain color form command string
+        desired_color = color
+        #desired_color = "white"
+        objectNum = -1
+        baxterArm = 0
+
+        colorFile = open(OPE_DIR + "ObjectColors.txt")
+        content = colorFile.readlines()
+        print content
+
+        i = 0
+        for colors in content:
+            objColor = colors.strip("'").rstrip()
+
+            print "checking: " + objColor
+            if objColor == desired_color:
+                objectNum = i
+                break
+            i = i + 1
+
+        print "Object Number: " , objectNum
+        #*********************************************************************************#
+        # TODO: transform based on kinect
+        #*********************************************************************************#
+        # Show OPE Results, Grab the Object
+        objectLoc = None
+        if OPEAssist.objCount > 0:
+
+            rospy.loginfo("Adding Table Collision Model")
+            #ADD Table Collision Model
+            self.moveit.addObject("TABLE",
+                                  OPEAssist.tablePos,
+                                  OPEAssist.tableSize)
+
+            # ADD Object Collision Models
+            for x in OPEAssist.objList:
+                self.moveit.addObject("OBJECT" + str(x['objNumber']),
+                                      x['objPos'],
+                                      x['objSize'])
+
+            #rospy.sleep(1)
+            #OPEAssist.showOPEResults()
+            objectLoc = OPEAssist.objList[objectNum]['objPos']
+            baxterArm = self.graspObject(objectLoc, [0, 0, 0, 0], objectNum)
+
+            '''
+            for i in range(OPEAssist.objCount):
+                self.moveit.scene.remove_world_object("OBJECT" + str(i))
+            self.moveit.scene.remove_world_object("TABLE")
+            '''
+
+            #self.bringToSide( BaxterPositions.lowerRightSidePos, BaxterPositions.lowerRightSideRot, leftRight = "right")
+            #self.bringToSide( BaxterPositions.lowerLeftSidePos, BaxterPositions.lowerLeftSideRot, leftRight = "left")
+        #*********************************************************************************#
+        else:
+            rospy.loginfo("No Objects Detected")
+            return 
+        
+        # do we need this?
+        self.openni_process = Popen(KILL_XNSENSOR_CMD, shell=True, preexec_fn=os.setsid)
+
+        '''
+        self.openni_process = Popen(OPENNI_CMD, shell=True, preexec_fn=os.setsid)
+        rospy.sleep(10)
+        '''
+        
+
+        #*********************************************************************************#
+        # Face Navigation Section (Working - dependant on PowerBotNavigation ROS Node)
+        # - Load Face profiles and navigate to coordinates of 'personId' 
+        
+        #personId = 2
+        personId = int(personStr)
+        if personId is not None and personId is not -1:
+            # speak("Navigating to Person" + str(personId))
+            self.command_done = False
+            faceID = str(personId)
+
+            # rotate away from the table
+            rotation = Int32MultiArray()
+            rotation.data = [-1, -1 , 180]
+
+            self.rotation_reached = False
+            self.pub_rotNav.publish(rotation)
+            while self.rotation_reached != True:
+                pass
+
+            rotation.data = [-1, -1 , -90] 
+            self.rotation_reached = False
+            self.pub_rotNav.publish(rotation)
+            while self.rotation_reached != True:
+                pass
+            
+            rospy.loginfo("Facing away from table")
+            self.location_reached = False
+
+            '''
+            ## COMMENT OUT
+            rospy.sleep(10)
+
+            defaultPos = Int32MultiArray()
+            defaultPos.data = [1470,-850,0]
+            self.pub_locNav.publish(defaultPos)
+            while self.location_reached != True:
+                pass
+            rospy.loginfo("Arrived at default navigation coordinates")
+            self.location_reached = False;
+            ## END HERE
+            '''
+
+            #if not self.command_done:
+            rospy.loginfo("Starting PowerBot Navigation to person: " + faceID)
+            self.pub_detectNav.publish(faceID)
+        else:
+            rospy.loginfo("No Valid PersonID: " + faceID)
+
+        while self.location_reached != True:
+            pass
+        self.location_reached = False 
+
+        if objectLoc is not None:
+            print "DONE! Handing it to the user...."
+            # speak("Going to object (raised) position....")
+            # OBJECT POSE (RAISED)4
+            '''
+            objectRaisedLoc = copy.deepcopy(objectLoc)
+            objectRaisedLoc[2] = objectRaisedLoc[2]
+            objectRaisedPlan = self.moveit.createPathPlan(objectRaisedLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(objectRaisedPlan)
+            self.executePlan(baxterArm, objectRaisedPlan)
+            '''
+            rospy.loginfo("DONE NAVIGATING... TAKE THE OBJECT")
+            rospy.sleep(2)
+
+            self.goToWaiting(baxterArm)
+
+            # rotate away from the table
+            rotation = Int32MultiArray()
+            rotation.data = [-1, -1 , 180]
+
+            self.rotation_reached = False
+            self.pub_rotNav.publish(rotation)
+            while self.rotation_reached != True:
+                pass
+            self.rotation_reached = False
+
+
+            # rotate away from the table
+            rotation = Int32MultiArray()
+            rotation.data = [-1, -1 , 90]
+
+            self.rotation_reached = False
+            self.pub_rotNav.publish(rotation)
+            while self.rotation_reached != True:
+                pass
+            self.rotation_reached = False
+
+
+            # navigate to table
+            tablePos = Int32MultiArray()
+            tablePos.data = BaxterPositions.default_table
+
+            self.pub_locNav.publish(tablePos)
+            while self.location_reached != True:
+                pass
+            rospy.loginfo("Arrived at default object table coordinates")
+            self.location_reached = False 
+
+        #*********************************************************************************#
+        
+        #self.rate.sleep()
+
+    def command_sort(self):
+        print "Starting Cleanup Task"
+        
+        # set arms to waiting position
+        #self.goToWaiting(0)
+        #self.goToWaiting(1)
+
+        '''
+        # navigate to table position
+        tablePos = Int32MultiArray()
+        tablePos.data = [300, -1050, 180]
+
+        self.pub_locNav.publish(tablePos)
+        while self.location_reached != True:
+            pass
+        rospy.loginfo("Arrived at default object location coordinates")
+        self.location_reached = False
+        '''
+
+        #Remove Old PCDs
+        removePCDs(OPE_DIR)
+        rospy.sleep(1)
+        
+        #*******************************************************************************************************************#
+        # Object Pose Estimation Selection (WORKING)
+        # - Estimate Object Poses 
+        # - Save OPE Results to txt
+        # - Average Hues and save to color file
+        # - Grasp Object
+        # - Face Navigation to user
+
+        # Run OPE
+        OPEAssist.runOPE()
+        OPEAssist.loadOPEResults()
+        rospy.sleep(1)
+        
+        # Get OPE Object Colors
+        colors_process = Popen(COLORS_CMD, shell=True, preexec_fn=os.setsid)
+        rospy.sleep(1)
+
+        #*******************************************************************************************************************#
         # Show OPE Results, Grab the Object
         if OPEAssist.objCount > 0:
 
@@ -821,68 +1397,99 @@ class BaxterAction:
                                       x['objPos'],
                                       x['objSize'])
 
-            rospy.sleep(1)
+            # Object Selection
+            objectNum = -1
+            colorFile = open(OPE_DIR + "ObjectColors.txt")
+            content = colorFile.readlines()
+            print content
 
-            #OPEAssist.showOPEResults()
+            # iterate through all detected objects
+            i  = 0
+            for colors in content:
+                
+                objColor = colors.strip("'").rstrip()
+                print "checking: " + objColor
+                objectNum = i
+                
+                if OPEAssist.objList[objectNum]['objPos'][1] > 0:
+                    #self.goToWaiting(baxterArm = 1)
+                    baxterArm = 1
+                else:
+                    #self.goToWaiting(baxterArm = 0)
+                    baxterArm = 0
 
-            '''
-            self.graspObject(OPEAssist.objList[objectNum]['objPos'], [0, 0, 0, 0], objectNum)
-            '''
-            #self.bringToSide( BaxterPositions.lowerRightSidePos, BaxterPositions.lowerRightSideRot, leftRight = "right")
-            #self.bringToSide( BaxterPositions.lowerLeftSidePos, BaxterPositions.lowerLeftSideRot, leftRight = "left")
-        #*********************************************************************************#
+                self.gotoObject(OPEAssist.objList[objectNum]['objPos'], [0, 0, 0, 0], objectNum)
+                force1 = self.measureDeformation(baxterArm)
+                force2 = self.measureDeformation(baxterArm)
+                
+                self.moveGripper(selectedGripper = baxterArm, pos = None, openClose = "close")
+                rospy.sleep(1)
+                self.goAwayFromObject(OPEAssist.objList[objectNum]['objPos'], [0, 0, 0, 0], objectNum)
+
+                if (force1+force2)/2 > 40:
+                    print "nondeformable"
+                    
+                    if baxterArm == 1:
+                        self.gotoSide( BaxterPositions.lowerLeftSidePos_forward, BaxterPositions.normalRot, leftRight = "left")
+                    else:
+                        self.gotoSide( BaxterPositions.lowerRightSidePos_forward, BaxterPositions.normalRot, leftRight = "right")
+
+                    rospy.sleep(1)
+                    self.moveGripper(selectedGripper=baxterArm, pos = None, openClose = "open")
+                    rospy.sleep(1)
+                    
+                else:
+                    print "deformable"
+                    
+                    if baxterArm == 1:
+                        self.gotoSide( BaxterPositions.lowerLeftSidePos_backward, BaxterPositions.normalRot, leftRight = "left")
+                    else:
+                        self.gotoSide( BaxterPositions.lowerRightSidePos_backward, BaxterPositions.normalRot, leftRight = "right")
+                    
+                    rospy.sleep(1)
+                    self.moveGripper(selectedGripper=baxterArm, pos = None, openClose = "open")
+                    rospy.sleep(1)
+                    
+                i = i + 1
+                '''
+                if objColor == 'red':
+                    self.gotoObject(OPEAssist.objList[objectNum]['objPos'], [0, 0, 0, 0], objectNum)
+                    self.bringToPos( BaxterPositions.sortedOnePos, BaxterPositions.sortedOneRot)
+                elif objColor == 'white':
+                    self.gotoObject(OPEAssist.objList[objectNum]['objPos'], [0, 0, 0, 0], objectNum)
+                    self.bringToPos( BaxterPositions.sortedTwoPos, BaxterPositions.sortedTwoRot)
+                elif objColor == 'pink':
+                    self.gotoObject(OPEAssist.objList[objectNum]['objPos'], [0, 0, 0, 0], objectNum)
+                    self.bringToPos( BaxterPositions.sortedThreePos, BaxterPositions.sortedThreeRot)
+                '''
+        #*******************************************************************************************************************#
         else:
             rospy.loginfo("No Objects Detected")
             return 
-
-        self.openni_process = Popen(KILL_XNSENSOR_CMD, shell=True, preexec_fn=os.setsid)
-        rospy.sleep(5)
-        self.openni_process = Popen(OPENNI_CMD, shell=True, preexec_fn=os.setsid)
-        rospy.sleep(10)
-
-
-        #*********************************************************************************#
-        # Face Navigation Section (Working - dependant on PowerBotNavigation ROS Node)
-        # - Load Face profiles and navigate to coordinates of 'personId' 
-        '''
-        personId = -1
-        personId = int(personStr)
-        if personId is not None and personId is not -1:
-            # speak("Navigating to Person" + str(personId))
-            self.command_done = False
-            faceID = str(personId)
-
-            # rotate away from the table
-            rotation = Int32MultiArray()
-            rotation.data = [-1, -1 ,0]
-
-            self.rotation_reached = False
-            self.pub_rotNav.publish(rotation)
-            while self.rotation_reached != True:
-                pass
-            rospy.loginfo("Facing away from table")
-            self.location_reached = False
-
-            ## COMMENT OUT
-            rospy.sleep(10)
-
-            defaultPos = Int32MultiArray()
-            defaultPos.data = [1470,-850,0]
-            self.pub_locNav.publish(defaultPos)
-            while self.location_reached != True:
-                pass
-            rospy.loginfo("Arrived at default navigation coordinates")
-            self.location_reached = False;
-            ## END HERE
-
-            #if not self.command_done:
-            rospy.loginfo("Starting PowerBot Navigation to person: " + faceID)
-            self.pub_detectNav.publish(faceID)
-                
-            # else:
-            #     rospy.loginfo("No Valid PersonID: " + faceID)
-                # speak("Task Complete")
-        '''
-        #*********************************************************************************#
         
-        self.rate.sleep()
+        '''
+        pos1, force1, maxforce1 = self.measureDeformation(baxterArm = 1)
+        pos2, force2, maxforce2 = self.measureDeformation(baxterArm = 1)
+        print pos1, force1, maxforce1
+        print pos2, force2, maxforce2
+
+        if force1 >= 0.0 and force1 < 1.0 and force2 >= 0.0 and force2 < 1.0:
+            print "deformable"
+
+        else:
+            print "non-deformable"
+
+        '''
+
+        '''
+        elif force1 >= force2 - 2.0 and force1 <= force2 + 2.0:
+            print "non-deformable"
+        
+        else:
+            print "semi-deformable"
+        '''
+            
+
+    #*******************************************************************************************************************#
+    # END CLEANUP TASK
+    #*******************************************************************************************************************#

@@ -29,7 +29,8 @@ PowerBotClient::~PowerBotClient() {
 }
 
 bool PowerBotClient::connect() {
-    //if(pbClient.blockingConnect("127.0.0.1", 7272)) {
+    //pbClient.setConnectTimeoutTime(-1);
+    //if(pbClient.blockingConnect("127.0.0.1", 8101)) {
     if(pbClient.blockingConnect("192.168.2.112", 7272)) {
         pbClient.runAsync();
         pbClient.addHandler("updateNumbers", &pbOutputNumbersCB);
