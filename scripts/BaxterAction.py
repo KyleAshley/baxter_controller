@@ -6,9 +6,14 @@ import baxter_interface
 from BaxterUtil import *
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 from baxter_interface import CHECK_VERSION
 from baxter_core_msgs.msg import EndpointState
 from baxter_core_msgs.msg import EndEffectorState
+
+from ar_track_alvar.msg import AlvarMarker
+from ar_track_alvar.msg import AlvarMarkers
 
 from sensor_msgs.msg import Range
 import math
@@ -38,6 +43,7 @@ from sensor_msgs.msg import (
 )
 from geometry_msgs.msg import (
     PoseStamped,
+    PointStamped,
     Pose,
     Point,
     Quaternion
@@ -59,7 +65,7 @@ import OPEAssist
 
 OPENNI_CMD = "roslaunch openni_launch openni.launch"
 COLORS_CMD = "rosrun baxter_controller ObjectColors"
-OPE_DIR = "/home/baxter/ros/ws_carrt/src/baxter_controller/scripts/OPE-Release/"
+OPE_DIR = "/home/baxter/ros/ws_carrt/src/baxter_controller/src/OPE-Baxter/"
 KILL_XNSENSOR_CMD = "killall killXnSensorServer"
 
 class GripperState:
@@ -185,8 +191,8 @@ class BaxterAction:
 
         # MIMIC
         self.mimic_timer = None
-        self.ik_window_size = 30
-        self.detection_window_size = 40
+        self.ik_window_size = 10
+        self.detection_window_size = 10
         self.ik_out_of_range = False
 
         # store position commands
@@ -211,9 +217,11 @@ class BaxterAction:
         #------------------------------------------------------------------------------------------#
         # Object Retreival
         # Initialize ROS node
+        self.activeArm = 0              # 0 = left
         self.command_done = False
         self.location_reached = False
         self.rotation_reached = False
+        self.arTag_reached = False
         self.openni_process = None
 
         rospy.loginfo("Setting up ROS SUBS/PUBS....")
@@ -225,6 +233,17 @@ class BaxterAction:
 
         self.pub_rotNav = rospy.Publisher('Navigation/desiredRotation', Int32MultiArray, queue_size = 1 )
         self.sub_rotNav = rospy.Subscriber("Navigation/rotationReached", String, self.rotationReached_callback)
+
+        self.pub_arNav = rospy.Publisher('Navigation/desiredARTag', String, queue_size = 1)
+        self.sub_arNav = rospy.Subscriber('Navigation/arTagReached', String, self.arTagReached_callback)
+        #--------------------------------------------------------------------------------------------#
+        # Book Retrieval
+        self.ar_markers = []
+        self.preBookReached = False
+        self.bookFound = False
+        self.pub_bookTitle = rospy.Publisher('OCR/bookTitle', String, queue_size = 1 )
+        self.sub_bookLocation = rospy.Subscriber("OCR/bookLocation", Int32MultiArray, self.bookFound_callback)
+        self.sub_arMarker = rospy.Subscriber("ar_pose_marker", AlvarMarkers, self.arMarker_callback)
 
 
         #------------------------------------------------------------------------------------------#
@@ -291,9 +310,9 @@ class BaxterAction:
     def moveGripper(self, selectedGripper, pos, openClose):
         if pos is not None or openClose is None:
             if selectedGripper == 1:
-                self.rightGripper.command_position(pos, block=False)
+                self.rightGripper.command_position(pos, block=True)
             else:
-                self.leftGripper.command_position(pos, block=False)
+                self.leftGripper.command_position(pos, block=True)
 
         elif openClose == "open" or openClose == "Open":
             if selectedGripper == 1:
@@ -306,6 +325,12 @@ class BaxterAction:
                 self.rightGripper.command_position(0)
             else:
                 self.leftGripper.command_position(0)
+
+        elif openClose == "half" or openClose == "Half":
+            if selectedGripper == 1:
+                self.rightGripper.command_position(50)
+            else:
+                self.leftGripper.command_position(50)
 
     def resetArms(self):
         #self.leftLimb.move_to_neutral()
@@ -406,9 +431,9 @@ class BaxterAction:
     # MIMIC DEMO
     # -------------------------------------------------------------------------------------------------------------------------#
     '''
-    def mimic(self):
+    def mimic(self, vision):
         self.rs.enable()
-        self.resetArms()
+        #self.resetArms()
         self.mimic_timer = rospy.Timer(rospy.Duration(1.0 / self.ik_rate), self.mimic_callback)
         #rate = rospy.Rate(self.detection_window_size)
         rate = rospy.Rate(30)               # hz
@@ -418,8 +443,8 @@ class BaxterAction:
 
             try:
                 # gripper
-                #self.moveGripper(selectedGripper = 0, pos = vision.r_hand_state, openClose = None)
-                #self.moveGripper(selectedGripper = 1, pos = vision.l_hand_state, openClose = None)
+                self.moveGripper(selectedGripper = 0, pos = vision.r_hand_state, openClose = None)
+                self.moveGripper(selectedGripper = 1, pos = vision.l_hand_state, openClose = None)
 
                 # translation
                 (r_trans,r_rot) = self.tf.lookupTransform(
@@ -441,7 +466,6 @@ class BaxterAction:
                     self.r_trans_prev.pop(0)
 
 
-                
                 # rotation
                 (r_trans,r_rot) = self.tf.lookupTransform(
                     '/right_hand_1',
@@ -552,7 +576,7 @@ class BaxterAction:
             #self.set_left_coords(lh_x, lh_y, lh_z, ey=math.pi*-1.0 - 6.0*(lh_yaw))
 
             #self.set_left_coords(lh_x, lh_y, lh_z, lh_roll, lh_pitch, lh_yaw)
-            self.set_left_coords(rh_x, rh_y, rh_z)
+            self.set_right_coords(rh_x, rh_y, rh_z)
             self.set_left_coords(lh_x, lh_y, lh_z)
             #self.set_left_coords(lh_x, lh_y, lh_z, ep=rh_pitch, ey=rh_yaw)
             #self.set_right_coords(rh_x, rh_y, rh_z, ep=lh_pitch, ey=lh_yaw)
@@ -761,7 +785,7 @@ class BaxterAction:
     def locationReached_callback(self, data):
         rospy.loginfo(rospy.get_caller_id() + "--Destination Status: %s\n", data.data)
         #speak("Destination Reached")
-        if data.data is "1":
+        if data.data == "1":
             self.location_reached = True
         else:
             self.location_reached = False
@@ -769,23 +793,20 @@ class BaxterAction:
     def rotationReached_callback(self, data):
         rospy.loginfo(rospy.get_caller_id() + "--Destination Status: %s\n", data.data)
         #speak("Rotation Reached")
-        if data.data is "1":
+        if data.data == "1":
             self.rotation_reached = True
         else:
             self.rotation_reached = False
 
-
-    def executePlan(self, baxterArm, plan):
-        if baxterArm == 0:
-            if not self.moveit.leftGroup.execute(plan):
-                print "Could not move to plan"
-                # speak("Could not move to pre-object position!")
-                return False
+    def arTagReached_callback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + "--AR Destination Status: %s\n", data.data)
+        #speak("Rotation Reached")
+        if data.data == "1":
+            self.arTag_reached = True
         else:
-            if not self.moveit.rightGroup.execute(plan):
-                print "Could not move to plan"
-                # speak("Could not move to pre-object position!")
-                return False
+            self.arTag_reached = False
+
+
 
     def gotoObject(self, objectLoc, objectRot, objectNum):
         # PRE-OBJECT POSE
@@ -816,7 +837,7 @@ class BaxterAction:
 
         preObjectPlan = self.moveit.createPathPlan(preObjectLoc, baxterArm, BaxterPositions.normalRot)
         self.moveit.slowPlanVelocity(preObjectPlan)
-        self.executePlan(baxterArm, preObjectPlan)
+        self.moveit.executePlan(baxterArm, preObjectPlan)
 
         self.moveit.scene.remove_world_object("OBJECT" + str(objectNum))
         rospy.sleep(1)
@@ -830,7 +851,7 @@ class BaxterAction:
         # speak("Going to object position....")
         objectPlan = self.moveit.createPathPlan(objectLoc, baxterArm, BaxterPositions.normalRot)
         #self.moveit.slowPlanVelocity(objectPlan)
-        self.executePlan(baxterArm, objectPlan)
+        self.moveit.executePlan(baxterArm, objectPlan)
 
         return True
 
@@ -853,7 +874,7 @@ class BaxterAction:
         print SideLocation
 
         lowerSidePlan = self.moveit.createPathPlan(lowerSideLocLocal, baxterArm, lowerSideRotLocal)
-        self.executePlan(baxterArm, lowerSidePlan)
+        self.moveit.executePlan(baxterArm, lowerSidePlan)
         rospy.sleep(1)
 
         return True
@@ -884,7 +905,7 @@ class BaxterAction:
         # speak("Going to object (raised) position....")
         objectRaisedPlan = self.moveit.createPathPlan(objectRaisedLoc, baxterArm, BaxterPositions.normalRot)
         self.moveit.slowPlanVelocity(objectRaisedPlan)
-        self.executePlan(baxterArm, objectRaisedPlan)
+        self.moveit.executePlan(baxterArm, objectRaisedPlan)
 
         print "Going to raised pre-object position...."
         # speak("Going to pre-object position....")
@@ -892,7 +913,7 @@ class BaxterAction:
 
         raisedPreObjectPlan = self.moveit.createPathPlan(raisedPreObjectLoc, baxterArm, BaxterPositions.normalRot)
         self.moveit.slowPlanVelocity(raisedPreObjectPlan)
-        self.executePlan(baxterArm, raisedPreObjectPlan)
+        self.moveit.executePlan(baxterArm, raisedPreObjectPlan)
         rospy.sleep(1)
 
         self.goToWaiting(baxterArm)
@@ -917,32 +938,64 @@ class BaxterAction:
 
         gripper.command_position(pos)
         rospy.sleep(1)
-    
+        '''
         print "Finding initial position"
-        while(gripperState.force <= 3 and pos > 0):
+        while(gripperState.force <= 0.001 and pos > 0):
             gripper.command_position(pos)
             pos -= 1
             rospy.sleep(0.1)
-            
+            print gripperState.force
+        '''
+        pos = 100 
         contact = pos
         print "encountered at:", contact
         gripper.command_position(contact-10)
         # close gripper all the way, get force and pos deltas
         dx=0
         forces = []
+        overthirty = []
+        max_force = 0
+        max_pos = 0
         while(pos > 0):
             dx+=1
             pos = contact-dx
             gripper.command_position(pos)
+            rospy.sleep(0.005)
+
             forces.append(gripperState.force)
-            rospy.sleep(0.1)
+            if gripperState.force > max_force:
+                max_force = gripperState.force
+                max_pos = pos
+
+            if gripperState.force > 28.0:
+                overthirty.append(gripperState.force)
 
         gripper.command_position(100)
-        print forces
+        #print forces
+        '''
         mean = np.mean(forces)
         std = np.std(forces)
-        print mean, std
-            
+        print 'mean: ', mean, 'std: ', std
+        print 'max force: ', max_force, 'max pos: ', max_pos
+
+        # non-deform max_force > 90 ish, max_pos > 10, mean force ~ 9
+        # semi-deform
+        # deform: max force < 1.0, max_pos < 10
+
+        plt.plot(forces)
+
+
+        plt.plot(overthirty)
+        mean = np.mean(overthirty)
+        std = np.std(overthirty)
+        print "over 30", len(overthirty)
+        print 'mean: ', mean, 'std: ', std
+        print 'max force: ', max_force, 'max pos: ', max_pos
+
+        plt.show()
+        '''
+        #print mean + std - 3*len(overthirty) + max_force
+        mean = np.mean(overthirty)
         return mean
 
     def graspObject(self, objectLoc, objectRot, objectNum):
@@ -971,13 +1024,14 @@ class BaxterAction:
             gripperState = self.leftGripperState
 
 
-        vertAdjustRes = 0.05
+        vertAdjustRes = 0.02
         vertAdjust = 0.0
         tryRaised = 0.0                       # try to raise the gripper to get a successful plan
         while(gripperState.force == 0):
-
+            if tryRaised > 3:
+                return baxterArm
             # modify pre-object pose to try to move higher and avoid collisions, incrementally increase vertical position
-            preObjectLoc[0] = preObjectLoc[0] + vertAdjustRes*tryRaised
+            preObjectLoc[2] = preObjectLoc[2] + vertAdjustRes*tryRaised
             tryRaised+=1.0
 
             print "Opening gripper...."
@@ -990,19 +1044,36 @@ class BaxterAction:
             # speak("Going to pre-object position....")
             print preObjectLoc
 
-            preObjectPlan = self.moveit.createPathPlan(preObjectLoc, baxterArm, BaxterPositions.normalRot)
+            success_plan, preObjectPlan = self.moveit.createPathPlanMulti(preObjectLoc, baxterArm, BaxterPositions.normalRot, 3)
+            
+            if not success_plan:
+                print "Failed to find a plan"
+                return 
+
             self.moveit.slowPlanVelocity(preObjectPlan)
-            self.executePlan(baxterArm, preObjectPlan)
+            success_exec = self.moveit.executePlanMulti(preObjectPlan, baxterArm, 3)
+            
+            if not success_exec:
+                print "Failed to execute the plan"
+                return 
 
             self.moveit.scene.remove_world_object("OBJECT" + str(objectNum))
             rospy.sleep(1)
             
             print "Going to object position...."
             # speak("Going to object position....")
-            objectPlan = self.moveit.createPathPlan(objectLoc, baxterArm, BaxterPositions.normalRot)
-            #self.moveit.slowPlanVelocity(objectPlan)
-            self.executePlan(baxterArm, objectPlan)
-            rospy.sleep(1)
+            success_plan, objectPlan = self.moveit.createPathPlanMulti(objectLoc, baxterArm, BaxterPositions.normalRot, 3)
+            
+            if not success_plan:
+                print "Failed to find a plan"
+                return 
+
+            self.moveit.slowPlanVelocity(objectPlan)
+            success_exec = self.moveit.executePlanMulti(objectPlan, baxterArm, 3)
+            
+            if not success_exec:
+                print "Failed to execute the plan"
+                return 
 
             print "Closing gripper..."
             # speak("Closing gripper...")
@@ -1012,29 +1083,76 @@ class BaxterAction:
 
             print "Going to object (raised) position...."
             # speak("Going to object (raised) position....")
-            objectRaisedPlan = self.moveit.createPathPlan(objectRaisedLoc, baxterArm, BaxterPositions.normalRot)
+            success_plan, objectRaisedPlan = self.moveit.createPathPlanMulti(objectRaisedLoc, baxterArm, BaxterPositions.normalRot, 3)
+            
+            if not success_plan:
+                print "Failed to find a plan"
+                return 
+
             self.moveit.slowPlanVelocity(objectRaisedPlan)
-            self.executePlan(baxterArm, objectRaisedPlan)
+            success_exec = self.moveit.executePlanMulti(objectRaisedPlan, baxterArm, 3)
+            
+            if not success_exec:
+                print "Failed to execute the plan"
+                return 
 
             print "Going to raised pre-object position...."
             # speak("Going to pre-object position....")
             print raisedPreObjectLoc
 
-            raisedPreObjectPlan = self.moveit.createPathPlan(raisedPreObjectLoc, baxterArm, BaxterPositions.normalRot)
+            success_plan, raisedPreObjectPlan = self.moveit.createPathPlanMulti(raisedPreObjectLoc, baxterArm, BaxterPositions.normalRot, 3)
+            
+            if not success_plan:
+                print "Failed to find a plan"
+                return 
+
             self.moveit.slowPlanVelocity(raisedPreObjectPlan)
-            self.executePlan(baxterArm, raisedPreObjectPlan)
-            rospy.sleep(1)
+            success_exec = self.moveit.executePlanMulti(raisedPreObjectPlan, baxterArm, 3)
+            
+            if not success_exec:
+                print "Failed to execute the plan"
+                return 
 
             '''
             self.goToWaiting(baxterArm)
             rospy.sleep(1)
             '''
+            return baxterArm
 
         # return the arm it was grasped with
         return baxterArm 
 
+    def command_navigate(self, personStr):
+        #*********************************************************************************#
+        # Face Navigation Section (Working - dependant on PowerBotNavigation ROS Node)
+        # - Load Face profiles and navigate to coordinates of 'personId' 
+        #personId = 2
+        personId = int(personStr)
+        if personId is not None and personId is not -1:
+            # speak("Navigating to Person" + str(personId))
+            self.command_done = False
+            faceID = str(personId)
+
+            #if not self.command_done:
+            rospy.loginfo("Starting PowerBot Navigation to person: " + faceID)
+            self.pub_detectNav.publish(faceID)
+        else:
+            rospy.loginfo("No Valid PersonID: " + faceID)
+
+        while self.location_reached != True:
+            pass
+        self.location_reached = False 
+
+    # Object Grasping
+    # - Assume objects are in view of robot on a table
+    # - Runs OPE and grasps  object with color of parameter 'color'
     def command_grasp_object(self, color):
         rospy.loginfo("Retreive Grasp Starting")
+
+        # remove any remaining collision models of OPE objects
+        for i in range(50):
+            self.moveit.scene.remove_world_object("OBJECT" + str(i))
+        self.moveit.scene.remove_world_object("TABLE")
 
         # reset arms
         self.goToWaiting(0)
@@ -1067,7 +1185,7 @@ class BaxterAction:
         #TODO: Obtain color form command string
         desired_color = color
         #desired_color = "white"
-        objectNum = -1
+        objectNum = 0
         baxterArm = 0
 
         colorFile = open(OPE_DIR + "ObjectColors.txt")
@@ -1106,14 +1224,19 @@ class BaxterAction:
 
             #rospy.sleep(1)
             #OPEAssist.showOPEResults()
-            '''
+            
             objectLoc = OPEAssist.objList[objectNum]['objPos']
+            print "OBJECT ", objectNum
+            
+        
+            self.moveit.scene.remove_world_object("OBJECT" + str(objectNum))
             baxterArm = self.graspObject(objectLoc, [0, 0, 0, 0], objectNum)
 
             for i in range(OPEAssist.objCount):
                 self.moveit.scene.remove_world_object("OBJECT" + str(i))
             self.moveit.scene.remove_world_object("TABLE")
-            '''
+            
+
             #self.bringToSide( BaxterPositions.lowerRightSidePos, BaxterPositions.lowerRightSideRot, leftRight = "right")
             #self.bringToSide( BaxterPositions.lowerLeftSidePos, BaxterPositions.lowerLeftSideRot, leftRight = "left")
         #*********************************************************************************#
@@ -1121,10 +1244,16 @@ class BaxterAction:
             rospy.loginfo("No Objects Detected")
             return 
 
+    # Object Retrieval
+    # - Navigate to set Table coords
+    # - Run OPE and grasp object
+    # - Rotate 180 and navigate to user
+    # - Rotate 180 and navigate back to table coords
     def command_retrieve(self, personStr, color):
         
         rospy.loginfo("Retreive Object Starting")
-
+        
+        t_start = time.time()
         # reset arms
         self.goToWaiting(0)
         #rospy.sleep(1)
@@ -1142,6 +1271,7 @@ class BaxterAction:
         rospy.loginfo("Arrived at default object table coordinates")
         self.location_reached = False 
         
+        t_table = time.time()
         # Launch Openni Drivers (not needed on lab laptop?)
         #self.openni_process = Popen(OPENNI_CMD, shell=True, preexec_fn=os.setsid)
 
@@ -1161,6 +1291,7 @@ class BaxterAction:
         OPEAssist.loadOPEResults()
         #rospy.sleep(1)
 
+        t_ope = time.time()
         #OPEAssist.showOPEResults()
         #rospy.sleep(2)
         
@@ -1195,6 +1326,9 @@ class BaxterAction:
         #*********************************************************************************#
         # Show OPE Results, Grab the Object
         objectLoc = None
+
+        t_color = time.time()
+
         if OPEAssist.objCount > 0:
 
             rospy.loginfo("Adding Table Collision Model")
@@ -1212,13 +1346,14 @@ class BaxterAction:
             #rospy.sleep(1)
             #OPEAssist.showOPEResults()
             objectLoc = OPEAssist.objList[objectNum]['objPos']
+            self.moveit.scene.remove_world_object("OBJECT" + str(objectNum))
             baxterArm = self.graspObject(objectLoc, [0, 0, 0, 0], objectNum)
 
-            '''
+            
             for i in range(OPEAssist.objCount):
                 self.moveit.scene.remove_world_object("OBJECT" + str(i))
             self.moveit.scene.remove_world_object("TABLE")
-            '''
+            
 
             #self.bringToSide( BaxterPositions.lowerRightSidePos, BaxterPositions.lowerRightSideRot, leftRight = "right")
             #self.bringToSide( BaxterPositions.lowerLeftSidePos, BaxterPositions.lowerLeftSideRot, leftRight = "left")
@@ -1228,21 +1363,23 @@ class BaxterAction:
             return 
         
         # do we need this?
-        self.openni_process = Popen(KILL_XNSENSOR_CMD, shell=True, preexec_fn=os.setsid)
-
+        #self.openni_process = Popen(KILL_XNSENSOR_CMD, shell=True, preexec_fn=os.setsid)
+        
         '''
         self.openni_process = Popen(OPENNI_CMD, shell=True, preexec_fn=os.setsid)
         rospy.sleep(10)
         '''
         
+        t_grasp = time.time()
 
         #*********************************************************************************#
         # Face Navigation Section (Working - dependant on PowerBotNavigation ROS Node)
         # - Load Face profiles and navigate to coordinates of 'personId' 
-        
-        #personId = 2
-        personId = int(personStr)
-        if personId is not None and personId is not -1:
+        personId = -1
+        #personId = int(personStr)
+        if personId is not None:
+            # nav using face recognition
+            
             # speak("Navigating to Person" + str(personId))
             self.command_done = False
             faceID = str(personId)
@@ -1264,7 +1401,7 @@ class BaxterAction:
             
             rospy.loginfo("Facing away from table")
             self.location_reached = False
-
+            
             '''
             ## COMMENT OUT
             rospy.sleep(10)
@@ -1279,74 +1416,98 @@ class BaxterAction:
             ## END HERE
             '''
 
-            #if not self.command_done:
-            rospy.loginfo("Starting PowerBot Navigation to person: " + faceID)
-            self.pub_detectNav.publish(faceID)
-        else:
-            rospy.loginfo("No Valid PersonID: " + faceID)
+            if personId != -1:
+                #if not self.command_done:
+                rospy.loginfo("Starting PowerBot Navigation to person: " + faceID)
+                self.pub_detectNav.publish(faceID)
 
-        while self.location_reached != True:
+            # anonymous nav using AR tags
+            else:
+                rospy.loginfo("Starting search for AR Tag 0")
+                ar_id = 0
+                self.command_done = False
+
+                MAX_ITER = 50000
+                iterations = 0
+                while not ar_id in self.ar_markers and iterations < MAX_ITER:
+                    rospy.loginfo("Looking for marker...")
+                    rospy.sleep(0.1)
+                    rospy.loginfo(str(iterations) + ": AR tag " + str(ar_id) + " is not seen by the camera")
+                    iterations+=1
+
+                rospy.loginfo("-----------------------------------------------")
+                rospy.loginfo("FOUND AT POS: "+ str(self.ar_markers[ar_id]))
+                rospy.loginfo("-----------------------------------------------")
+                pos = self.ar_markers[ar_id]
+                
+
+                self.pub_arNav.publish("0")
+                rospy.loginfo("Starting PowerBot Navigation to AR Tag 0")
+
+        while (self.location_reached == False and self.arTag_reached == False):
             pass
         self.location_reached = False 
+        self.arTag_reached = False
 
-        if objectLoc is not None:
-            print "DONE! Handing it to the user...."
-            # speak("Going to object (raised) position....")
-            # OBJECT POSE (RAISED)4
-            '''
-            objectRaisedLoc = copy.deepcopy(objectLoc)
-            objectRaisedLoc[2] = objectRaisedLoc[2]
-            objectRaisedPlan = self.moveit.createPathPlan(objectRaisedLoc, baxterArm, BaxterPositions.normalRot)
-            self.moveit.slowPlanVelocity(objectRaisedPlan)
-            self.executePlan(baxterArm, objectRaisedPlan)
-            '''
-            rospy.loginfo("DONE NAVIGATING... TAKE THE OBJECT")
-            rospy.sleep(2)
+        t_user = time.time()
 
-            self.goToWaiting(baxterArm)
+        print "DONE! Handing it to the user...."
+        while not(self.rightGripperState.force == 0 and self.leftGripperState.force == 0):
+            rospy.sleep(0.5)
+            print "Waiting for user to take the object"
 
-            # rotate away from the table
-            rotation = Int32MultiArray()
-            rotation.data = [-1, -1 , 180]
+        # speak("Going to object (raised) position....")
+        # OBJECT POSE (RAISED)4
+        rospy.loginfo("DONE NAVIGATING... TAKE THE OBJECT")
+        rospy.sleep(2)
 
-            self.rotation_reached = False
-            self.pub_rotNav.publish(rotation)
-            while self.rotation_reached != True:
-                pass
-            self.rotation_reached = False
+        self.goToWaiting(baxterArm)
 
+        # rotate away from the table
+        rotation = Int32MultiArray()
+        rotation.data = [-1, -1 , 180]
 
-            # rotate away from the table
-            rotation = Int32MultiArray()
-            rotation.data = [-1, -1 , 90]
-
-            self.rotation_reached = False
-            self.pub_rotNav.publish(rotation)
-            while self.rotation_reached != True:
-                pass
-            self.rotation_reached = False
+        self.rotation_reached = False
+        self.pub_rotNav.publish(rotation)
+        while self.rotation_reached != True:
+            pass
+        self.rotation_reached = False
 
 
-            # navigate to table
-            tablePos = Int32MultiArray()
-            tablePos.data = BaxterPositions.default_table
+        # rotate away from the table
+        rotation = Int32MultiArray()
+        rotation.data = [-1, -1 , 90]
 
-            self.pub_locNav.publish(tablePos)
-            while self.location_reached != True:
-                pass
-            rospy.loginfo("Arrived at default object table coordinates")
-            self.location_reached = False 
+        self.rotation_reached = False
+        self.pub_rotNav.publish(rotation)
+        while self.rotation_reached != True:
+            pass
+        self.rotation_reached = False
 
-        #*********************************************************************************#
-        
+        # navigate to table
+        tablePos = Int32MultiArray()
+        tablePos.data = BaxterPositions.default_table
+
+        self.pub_locNav.publish(tablePos)
+        while self.location_reached != True:
+            pass
+        rospy.loginfo("Arrived at default object table coordinates")
+        self.location_reached = False 
+
+    #*********************************************************************************#
+    
+        t_nav_back = time.time()
+
+        times_list = [t_start, t_table, t_ope, t_color, t_grasp, t_user, t_nav_back]
+        retrieve_times_to_file(times_list)
         #self.rate.sleep()
 
     def command_sort(self):
         print "Starting Cleanup Task"
         
         # set arms to waiting position
-        #self.goToWaiting(0)
-        #self.goToWaiting(1)
+        self.goToWaiting(0)
+        self.goToWaiting(1)
 
         '''
         # navigate to table position
@@ -1426,7 +1587,7 @@ class BaxterAction:
                 rospy.sleep(1)
                 self.goAwayFromObject(OPEAssist.objList[objectNum]['objPos'], [0, 0, 0, 0], objectNum)
 
-                if (force1+force2)/2 > 40:
+                if (force1+force2)/2 > 45:
                     print "nondeformable"
                     
                     if baxterArm == 1:
@@ -1493,3 +1654,245 @@ class BaxterAction:
     #*******************************************************************************************************************#
     # END CLEANUP TASK
     #*******************************************************************************************************************#
+
+    #*******************************************************************************************************************#
+    # Book Retreival Task
+    #*******************************************************************************************************************#
+
+    def arMarker_callback(self, data):
+        self.ar_markers = {}
+        for marker in data.markers:
+            #print "adding marker: " + str(marker.id)
+            try:
+                (trans,rot) = self.tf.lookupTransform('/ar_marker_'+str(marker.id), '/base', rospy.Time(0))
+                self.ar_markers[int(marker.id)] = [trans[2], \
+                                                   trans[1], \
+                                                   trans[0]]
+
+                p = PointStamped()
+                p.point.x = 0
+                p.point.y = 0
+                p.point.z = 0
+                p.header.frame_id = '/ar_marker_'+str(marker.id)
+                p = self.tf.transformPoint('/base', p)
+                self.ar_markers[int(marker.id)] = [p.point.x, p.point.y, p.point.z]
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+
+
+    def bookFound_callback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + " Found Book at: %d %d\n", data.data[0], data.data[1])
+
+        self.preBookReached = False
+        self.bookFound = True
+        self.preBookReached = self.gotoPreBook(data.data[0], data.data[1])
+
+    # align gripper pos in y 
+    def gotoPreBook(self, x, y):
+        rospy.loginfo("Found the book, adjusting")
+        pix_tolerance = 2.0
+        baxterArm = self.activeArm
+        CAMERA_HEIGHT = 640
+        CAMERA_WIDTH = 400
+        CAMERA_OFFSET = 16          # compensate for offset of camera on baxters hand
+
+        y_error = (CAMERA_HEIGHT/2) - y + CAMERA_OFFSET
+        y_error = y_error/10.0
+
+        x_error = (CAMERA_WIDTH/2) - x
+        x_error = x_error/10.0
+        rospy.loginfo("Manipulator position error: y:" + str(y_error) + " x: " + str(x_error))
+
+        if y_error > pix_tolerance:
+            self.adjustEndEffector(xyz = "xyz", val = [-5,-y_error, x_error], baxterArm = baxterArm)
+            rospy.sleep(0.3)
+            return False
+
+        elif y_error < -1*pix_tolerance:
+            self.adjustEndEffector(xyz = "xyz", val = [-5,-y_error, x_error], baxterArm = baxterArm)
+            rospy.sleep(0.3)
+            return False
+
+        else:
+            return True
+
+        return False
+
+    
+    # utility functon to move the end effector in xyz
+    def adjustEndEffector(self, xyz, val, baxterArm):
+
+        if baxterArm == 0:
+            gripperState = self.leftGripperState
+        else:
+            gripperState = self.rightGripperState
+
+        if xyz == "y" or xyz == "Y":
+            new_y = gripperState.y + 0.003*float(val) 
+            newRightGripperLoc = [gripperState.x, new_y, gripperState.z]
+            print "Current Pos: " + str([gripperState.x, gripperState.y, gripperState.z]) 
+            print "Corrected Pos: " + str(newRightGripperLoc) 
+
+            yCorrectedPlan = self.moveit.createPathPlan(newRightGripperLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(yCorrectedPlan)
+            self.moveit.executePlan(baxterArm, yCorrectedPlan)
+
+        elif xyz == "x" or xyz == "X":
+            new_x = gripperState.x + 0.003*float(val)
+            newRightGripperLoc = [new_x, gripperState.y, gripperState.z]
+            print "Current Pos: " + str([gripperState.x, gripperState.y, gripperState.z]) 
+            print "Corrected Pos: " + str(newRightGripperLoc) 
+
+            xCorrectedPlan = self.moveit.createPathPlan(newRightGripperLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(xCorrectedPlan)
+            self.moveit.executePlan(baxterArm, xCorrectedPlan)
+
+        elif xyz == "z" or xyz == "Z":
+            new_z = gripperState.z + 0.003*float(val)
+            newRightGripperLoc = [gripperState.x, gripperState.y, new_z]
+            print "Current Pos: " + str([gripperState.x, gripperState.y, gripperState.z]) 
+            print "Corrected Pos: " + str(newRightGripperLoc) 
+
+            zCorrectedPlan = self.moveit.createPathPlan(newRightGripperLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(zCorrectedPlan)
+            self.moveit.executePlan(baxterArm, zCorrectedPlan)
+
+        elif xyz == "xyz" or xyz == "XYZ":
+            new_x = gripperState.x + 0.003*float(val[0])
+            new_y = gripperState.y + 0.003*float(val[1])
+            new_z = gripperState.z + 0.003*float(val[2])
+            newRightGripperLoc = [new_x, new_y, new_z]
+            print "Current Pos: " + str([gripperState.x, gripperState.y, gripperState.z]) 
+            print "Corrected Pos: " + str(newRightGripperLoc) 
+
+            zCorrectedPlan = self.moveit.createPathPlan(newRightGripperLoc, baxterArm, BaxterPositions.normalRot)
+            self.moveit.slowPlanVelocity(zCorrectedPlan)
+            self.moveit.executePlan(baxterArm, zCorrectedPlan)
+
+
+
+    # command baxterArm to move to AR tag postion with xyz offset
+    def moveToARTag(self, ar_id, baxterArm, off_x=0, off_y=0, off_z=0):
+        rospy.loginfo("Looking for AR marker " + str(ar_id) + "...")
+        # find the marker
+        rep = 10
+        while not ar_id in self.ar_markers:
+            rospy.loginfo("Looking for marker...")
+            rospy.sleep(0.1)
+            rep-=1
+            if rep <= 0:
+                rospy.loginfo("AR tag " + str(ar_id) + " is not seen by the camera")
+                return -1
+
+        rospy.loginfo("-----------------------------------------------")
+        rospy.loginfo("FOUND AT POS: "+ str(self.ar_markers[ar_id]))
+        rospy.loginfo("-----------------------------------------------")
+        pos = self.ar_markers[ar_id]
+
+        # create adjusted position
+        adj_pos = self.ar_markers[ar_id]
+        adj_pos[0] = adj_pos[0] + off_x
+        adj_pos[1] = adj_pos[1] + off_y
+        adj_pos[2] = adj_pos[2] + off_z
+
+        # move to pre-shelf pose
+        rospy.loginfo("Adjust AR POS: " + str(adj_pos))
+        shelfPlan = self.moveit.createPathPlan(adj_pos, baxterArm, BaxterPositions.normalRot)
+        self.moveit.slowPlanVelocity(shelfPlan)
+        success = self.moveit.executePlan(baxterArm, shelfPlan)
+        rospy.sleep(1)
+
+        if not success:
+            rospy.loginfo("Failed to execute plan to ar tag " + str(ar_id))
+            return -1
+        else:
+            rospy.loginfo("Arrived at AR Tag " + str() )
+            return pos
+
+    def command_retrieve_book(self, personStr, title, useMarkers=False):
+        
+        rospy.loginfo("Starting Book Retrieval Task")
+        
+        # set arms to waiting position
+        self.goToWaiting(0)
+        rospy.sleep(1)
+        self.goToWaiting(1)
+        rospy.sleep(1)
+
+        self.shelf_marker_id = 9
+        # set it to use left arm
+        self.activeArm = 0
+        baxterArm = self.activeArm
+        self.pre_shelf_pos = self.moveToARTag(ar_id = self.shelf_marker_id, baxterArm=baxterArm, off_x = -0.15, off_y = 0.0, off_z = 0.04)
+        
+        if self.pre_shelf_pos == -1:
+            rospy.loginfo("Failed to move to preshelf pos")
+            return
+
+
+        # perform OCR
+        #bookTitle = "george orwell"
+        bookTitle = str(title)
+        rospy.loginfo("Looking for Book: " + str(bookTitle))
+        self.pub_bookTitle.publish(bookTitle)
+
+        iterations = 0
+        max_iter = 10            # number of iterations to scan the shelf
+        # scan the shelf
+        while self.preBookReached != True and iterations < max_iter:
+            #rospy.sleep(3)
+
+            OCR_iterations = 5
+            #self.bookFound = False
+            for i in range(OCR_iterations):
+                self.pub_bookTitle.publish(bookTitle)
+                rospy.sleep(1.0)
+                if self.bookFound:
+                    rospy.loginfo("Book Found after " + str(i) + " Iterations of OCR")
+                    break  
+
+            if not self.bookFound:
+                rospy.loginfo("STATUS: SEARCHING...")
+                self.adjustEndEffector(xyz = "xyz", val = [-5,12,2], baxterArm = baxterArm)
+                iterations+=1
+
+
+            time.sleep(0.6)
+
+            
+
+            # rescan back to far right
+            if self.preBookReached != True and self.bookFound != True and iterations == max_iter-1:
+                # move the end effector back to avoid hitting the shelf
+                rospy.loginfo("STATUS: RESET")
+                self.adjustEndEffector(xyz = "xyz", val = [-15,0,0], baxterArm = baxterArm)
+                self.pre_shelf_pos = self.moveToARTag(ar_id = self.shelf_marker_id, baxterArm=baxterArm, off_x = -0.15, off_y = 0.0, off_z = 0.04)
+                if self.pre_shelf_pos == -1:
+                    rospy.loginfo("Failed to move to preshelf pos")
+                    return
+                iterations=0
+
+            elif self.preBookReached != True and self.bookFound == True and iterations == max_iter-1:
+                # move the end effector slightly to un-obscure the book
+                rospy.loginfo("STATUS: OBSCURED...adjusting")
+                self.adjustEndEffector(xyz = "xyz", val = [-5,-6,2], baxterArm = baxterArm)
+        
+        if self.preBookReached == True:
+            rospy.loginfo("Moving in to grasp the book")
+            self.adjustEndEffector(xyz = "xyz", val = [25,0,0], baxterArm = baxterArm)
+            rospy.sleep(0.5)
+
+            rospy.loginfo("Closing Gripper and Moving out")
+            self.moveGripper(baxterArm, 0, None)
+            rospy.sleep(1.0)
+
+            self.adjustEndEffector(xyz = "xyz", val = [-70,0,0], baxterArm = baxterArm)
+            rospy.sleep(0.5)
+
+            rospy.loginfo("Going to waiting position")
+            self.goToWaiting(0)
+            rospy.sleep(0.5)
+
+        #*******************************************************************************************************************#
+        # END BOOK RETRIEVE
+        #*******************************************************************************************************************#

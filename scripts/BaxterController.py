@@ -52,10 +52,16 @@ import os
 
 # TODO: add this to launch script along with openni.launch
 # roslaunch baxter_controller baxter_controller.launch
-# rosrun tf static_transform_publisher 0.17 0.075 0.61 0.00 32.0 -3.00 180.0 /base /camera_link 25
-# rosrun tf static_transform_publisher 0.15 0.08 0.56 -0.008 0.08 -0.003 0.5   #better??
 
-# roslaunch openni_launch openni.launch device_id:=B00361708600048B (downward)
+# NEWEST DOWNWARD FACING: rosrun tf static_transform_publisher 0.24 0.018 0.555 -0.000 0.135 0.005 0.5 /base /camera_link 25
+# NEWEST FOWARD FACING: rosrun tf static_transform_publisher 0.1 0.018 0.9 -0.000 0.0 0.005 0.5 /base /camera_link 25
+
+# POWERBOT ssh guest@192.168.2.112
+# Pass: mobilerobot
+# cd /usr/local/Arnl
+# ./arnlServer
+
+# roslaunch openni_launch openni.launch device_id:=B00364613926048B (downward)
 # roslaunch openni_launch openni.launch device_id:=A00367801249047A (upward)
 # TO GET KINECT ID: lsusb -v -d 045e:02ae | grep -e "Bus\|iSerial"
 
@@ -73,7 +79,7 @@ class BaxterController:
         self.action.calibrateGripper(selectedGripper = "left")
         self.action.calibrateGripper(selectedGripper = "right")
 
-       
+        cv2.namedWindow("KEY_TO_SHUTOFF")
         #self.action.resetArms()
         '''
         # Baxter Vision Interface     
@@ -91,21 +97,23 @@ class BaxterController:
         self.action.mimic(self.vision)
         #-----------------------------------------------------------#
         '''
-        
-        self.action.command_retrieve("kyle", "red")
+        #self.action.command_retrieve_book("kyle", "computer vision")
+        #self.action.command_retrieve_book("kyle", "python pocket reference")
+        #self.action.command_retrieve_book("kyle", "python pocket reference")
+        #self.action.command_retrieve_book("kyle", "the x files fight the future")
+        #self.action.command_retrieve_book("kyle", "stiquito for beginners")
         #self.action.command_sort()
 
         #self.action.measureDeformation(1)
 
-
-
-
+        self.action.command_grasp_object('white')
+        #self.action.command_retrieve('kyle', 'pink')
         '''
         self.action.record(self.vision)
 
         self.action.playback()
         '''
-
+        #self.action.command_sort()
         #rospy.sleep(2)
         #self.vision.calibrateCamera()
 

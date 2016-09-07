@@ -1,0 +1,16 @@
+16.2030370235
+9.15697693825
+0.0208308696747
+21.9171831608
+59.5041158199
+31.3574399948
+
+Time to TABLE
+Time to OPE
+Time to COLOR
+Time to GRASP
+Time to USER
+Time to BACK
+
+correct object
+no obstacles hit

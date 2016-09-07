@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="95">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+      <itemPath>include/EigenSolver.h</itemPath>
+      <itemPath>include/InertiaCalculations.h</itemPath>
+      <itemPath>include/Minimization.h</itemPath>
+      <itemPath>include/OPECommon.h</itemPath>
+      <itemPath>include/OPESettings.h</itemPath>
+      <itemPath>include/OPEUtils.h</itemPath>
+      <itemPath>include/ObjectPoseEstimator.h</itemPath>
+      <itemPath>include/Plane.h</itemPath>
+      <itemPath>include/PointCloudCapture.h</itemPath>
+      <itemPath>include/SQFitting.h</itemPath>
+      <itemPath>include/SQTypes.h</itemPath>
+      <itemPath>include/TableObjectDetector.h</itemPath>
+      <itemPath>include/TableObjectDetector.hpp</itemPath>
+      <itemPath>include/TableObjectModeler.h</itemPath>
+    </logicalFolder>
+    <logicalFolder name="ResourceFiles"
+                   displayName="Resource Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <itemPath>src/InertiaCalculations.cpp</itemPath>
+      <itemPath>src/Minimization.cpp</itemPath>
+      <itemPath>src/OPEMain.cpp</itemPath>
+      <itemPath>src/OPESettings.cpp</itemPath>
+      <itemPath>src/OPEUtils.cpp</itemPath>
+      <itemPath>src/ObjectPoseEstimator.cpp</itemPath>
+      <itemPath>src/Plane.cpp</itemPath>
+      <itemPath>src/PointCloudCapture.cpp</itemPath>
+      <itemPath>src/SQFitting.cpp</itemPath>
+    </logicalFolder>
+    <logicalFolder name="TestFiles"
+                   displayName="Test Files"
+                   projectFiles="false"
+                   kind="TEST_LOGICAL_FOLDER">
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceRootList>
+    <Elem>/home/neroxtu/Desktop/MYAH/OPE-New/src</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Debug" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <ccTool>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>/usr/include/pcl-1.7</pElem>
+            <pElem>/usr/include/eigen3</pElem>
+            <pElem>/usr/include/vtk-5.8</pElem>
+            <pElem>/usr/include/ni</pElem>
+          </incDir>
+        </ccTool>
+        <linkerTool>
+          <output>bin/${CND_CONF}/${CND_PLATFORM}/ope-new</output>
+          <linkerLibItems>
+            <linkerOptionItem>-lboost_system</linkerOptionItem>
+            <linkerOptionItem>-lboost_thread</linkerOptionItem>
+            <linkerOptionItem>-lOpenNI</linkerOptionItem>
+            <linkerOptionItem>-lpcl_common</linkerOptionItem>
+            <linkerOptionItem>-lpcl_features</linkerOptionItem>
+            <linkerOptionItem>-lpcl_filters</linkerOptionItem>
+            <linkerOptionItem>-lpcl_io</linkerOptionItem>
+            <linkerOptionItem>-lpcl_search</linkerOptionItem>
+            <linkerOptionItem>-lpcl_segmentation</linkerOptionItem>
+            <linkerOptionItem>-lpcl_surface</linkerOptionItem>
+            <linkerOptionItem>-lpcl_visualization</linkerOptionItem>
+            <linkerOptionItem>-lvtkCommon</linkerOptionItem>
+            <linkerOptionItem>-lvtkFiltering</linkerOptionItem>
+            <linkerOptionItem>-lvtkHybrid</linkerOptionItem>
+            <linkerOptionItem>-lvtkRendering</linkerOptionItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <item path="include/EigenSolver.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/InertiaCalculations.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/Minimization.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/OPECommon.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/OPESettings.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/OPEUtils.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/ObjectPoseEstimator.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/Plane.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/PointCloudCapture.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/SQFitting.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/SQTypes.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/TableObjectDetector.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/TableObjectDetector.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/TableObjectModeler.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/InertiaCalculations.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/Minimization.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/OPEMain.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/OPESettings.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/OPEUtils.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/ObjectPoseEstimator.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/Plane.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/PointCloudCapture.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/SQFitting.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+    </conf>
+    <conf name="Release" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <developmentMode>5</developmentMode>
+        </cTool>
+        <ccTool>
+          <developmentMode>5</developmentMode>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>/usr/include/pcl-1.7</pElem>
+            <pElem>/usr/include/eigen3</pElem>
+            <pElem>/usr/include/vtk-5.8</pElem>
+            <pElem>/usr/include/ni</pElem>
+          </incDir>
+        </ccTool>
+        <fortranCompilerTool>
+          <developmentMode>5</developmentMode>
+        </fortranCompilerTool>
+        <asmTool>
+          <developmentMode>5</developmentMode>
+        </asmTool>
+        <linkerTool>
+          <output>bin/${CND_CONF}/${CND_PLATFORM}/ope-new</output>
+          <linkerLibItems>
+            <linkerOptionItem>-lboost_system</linkerOptionItem>
+            <linkerOptionItem>-lboost_thread</linkerOptionItem>
+            <linkerOptionItem>-lOpenNI</linkerOptionItem>
+            <linkerOptionItem>-lpcl_common</linkerOptionItem>
+            <linkerOptionItem>-lpcl_features</linkerOptionItem>
+            <linkerOptionItem>-lpcl_filters</linkerOptionItem>
+            <linkerOptionItem>-lpcl_io</linkerOptionItem>
+            <linkerOptionItem>-lpcl_search</linkerOptionItem>
+            <linkerOptionItem>-lpcl_segmentation</linkerOptionItem>
+            <linkerOptionItem>-lpcl_surface</linkerOptionItem>
+            <linkerOptionItem>-lpcl_visualization</linkerOptionItem>
+            <linkerOptionItem>-lvtkCommon</linkerOptionItem>
+            <linkerOptionItem>-lvtkFiltering</linkerOptionItem>
+            <linkerOptionItem>-lvtkHybrid</linkerOptionItem>
+            <linkerOptionItem>-lvtkRendering</linkerOptionItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <item path="include/EigenSolver.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/InertiaCalculations.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/Minimization.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/OPECommon.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/OPESettings.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/OPEUtils.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/ObjectPoseEstimator.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/Plane.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/PointCloudCapture.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/SQFitting.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/SQTypes.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/TableObjectDetector.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/TableObjectDetector.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="include/TableObjectModeler.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/InertiaCalculations.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/Minimization.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/OPEMain.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/OPESettings.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/OPEUtils.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/ObjectPoseEstimator.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/Plane.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/PointCloudCapture.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/SQFitting.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>

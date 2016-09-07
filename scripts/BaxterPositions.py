@@ -28,7 +28,7 @@ joint_names = {
 	'right': ['right_e0', 'right_e1', 'right_s0', 'right_s1', 'right_w0', 'right_w1', 'right_w2']
 }
 
-default_table = [199, 979, 90]
+default_table = [-58, -900, 90]
 
 normalRot = [-0.014345, 0.70062, -0.025133, 0.71295]
 

@@ -73,20 +73,20 @@ class BaxterController:
 
        
         #self.action.resetArms()
-        '''
+        
         # Baxter Vision Interface     
         self.vision = BaxterVision.BaxterVision()
         rospy.loginfo("Waiting for Kinect data...")
         while(not self.vision.has_depth_data and not self.vision.has_rgb_data):
             pass
         rospy.loginfo("Kinect Data Received")
-        '''
+        
         #self.action.moveGripper(selectedGripper = 1, pos = self.vision.r_hand_state, openClose = None)
         
         #-----------------------------------------------------------#
         # MIMIC DEMO
         #-----------------------------------------------------------#
-        self.action.mimic()
+        self.action.mimic(self.vision)
         #-----------------------------------------------------------#
         
         

@@ -226,11 +226,11 @@ int main()
 {
 	
 	ofstream colorFile;
-	colorFile.open("/home/baxter/ros/ws_carrt/src/baxter_controller/scripts/OPE-Release/ObjectColors.txt", std::ofstream::out | std::ofstream::trunc);
+	colorFile.open("/home/baxter/ros/ws_carrt/src/baxter_controller/src/OPE-Baxter/ObjectColors.txt", std::ofstream::out | std::ofstream::trunc);
 	colorFile.close();
-	colorFile.open("/home/baxter/ros/ws_carrt/src/baxter_controller/scripts/OPE-Release/ObjectColors.txt",ios::out | ios::app);
+	colorFile.open("/home/baxter/ros/ws_carrt/src/baxter_controller/src/OPE-Baxter/ObjectColors.txt",ios::out | ios::app);
 	
-	int numpcd = numPCDFiles("/home/baxter/ros/ws_carrt/src/baxter_controller/scripts/OPE-Release/");
+	int numpcd = numPCDFiles("/home/baxter/ros/ws_carrt/src/baxter_controller/src/OPE-Baxter/");
     vector <string> colors(vinit, vinit+9);
     vector <vector <int> > objs(numpcd, vector<int> (9, 0) );
 
@@ -239,7 +239,7 @@ int main()
 		
 		ifstream pcdFile;
 		stringstream ss;
-		ss << "/home/baxter/ros/ws_carrt/src/baxter_controller/scripts/OPE-Release/object_" << i << ".pcd";
+		ss << "/home/baxter/ros/ws_carrt/src/baxter_controller/src/OPE-Baxter/object_" << i << ".pcd";
 		string filename = ss.str();
 		pcdFile.open(filename.c_str(), std::fstream::in);
 		

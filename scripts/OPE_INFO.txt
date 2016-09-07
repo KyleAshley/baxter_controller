@@ -1,0 +1,18 @@
+OPE-Src folder in this directory contains the most recent version of OPE for use with BaxBot. 
+
+To compile: enter the director and run:
+	$ make clean
+	$ make
+
+The binary for OPE will then be located in bin/Debug/GNU-Linux-x86
+
+The current build for use with BaxBot omits the viewer so no user interaction is neccesary. The results of object pose estimation are saved in results.txt file in the same directory as the exe as:
+
+Table Pos/Orientation
+Object 1 Pos/Orientation
+Object 2 Pos/Orientation
+.
+.
+.
+
+

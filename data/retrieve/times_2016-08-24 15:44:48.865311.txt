@@ -1,0 +1,16 @@
+44.1393039227
+8.07324290276
+0.0140199661255
+22.272988081
+40.9652581215
+41.4957399368
+
+Time to TABLE
+Time to OPE
+Time to COLOR
+Time to GRASP
+Time to USER
+Time to BACK
+
+correct object
+no collisions

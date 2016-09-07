@@ -17,6 +17,20 @@
 #include "std_msgs/MultiArrayDimension.h"
 #include "std_msgs/String.h"
 
+#include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/Pose.h"
+#include "geometry_msgs/PointStamped.h"
+#include "geometry_msgs/Point.h"
+#include "geometry_msgs/Quaternion.h"
+
+#include "visualization_msgs/Marker.h"
+
+//#include <ar_track_alvar/AlvarMarker.h>
+//#include <ar_track_alvar/AlvarMarkers.h>
+
+#include "tf/transform_listener.h"
+#include "tf/tf.h"
+
 #include <cmath>
 #include <string>
 #include <deque>
@@ -37,6 +51,7 @@
 #include "Recognizer.h"
 #include "settings.h"
 #include <stdio.h>
+#include <typeinfo>
 
 bool isPosOutlier(vector<pcl::PointXYZ> prev_pos, pcl::PointXYZ point);
 
@@ -45,15 +60,28 @@ class PowerBotNavigate
 
 
 public:
+    tf::TransformListener listener;
+
+    string ar_person_topic;
+    int ar_person_id;
+    std_msgs::Int32MultiArray person_pose;
+
 	ros::NodeHandle n_;
     ros::Subscriber sub_face_navigate_;
     ros::Subscriber sub_location_navigate_;
+    ros::Subscriber sub_ar_navigate_;
     ros::Subscriber sub_rotate_;
+    ros::Subscriber sub_ar_marker_;             // transforms AR tag coordinates at 10Hz
+
+
 
     image_transport::Publisher pub_raw_;        // publish kinect data used in face detection
     ros::Publisher pub_personReached_;          // boolean topic, 1 = successfull navigation to person
     ros::Publisher pub_locationReached_;        // boolean topic, 1 = successfull navigation to location
     ros::Publisher pub_rotationReached_;        // boolean topic, 1 = successfull navigation to location
+    ros::Publisher pub_arTagReached_;        // boolean topic, 1 = successfull navigation to location
+
+    ros::Publisher pub_arToLocInternal_;        // internal topic to publish to navigate to AR tag location
 
     PointCloudCapture* pcc_;                    // pointCoudCapture for front facing kinect
     Recognizer recognizer_;                     // face recognizer class
@@ -79,7 +107,11 @@ public:
     // call to command powerbot to move to a desired location contained in ROI bounded by tl, and br points
     void navigateToDetectionCb(const std_msgs::String::ConstPtr& msg);
     void navigateToLocationCb(const std_msgs::Int32MultiArray::ConstPtr& coords);
+    void navigateToARTagCb(const std_msgs::String::ConstPtr& msg);
+    bool navigateToARLocation(bool initial_navigation);
+
     void rotationCb(const std_msgs::Int32MultiArray::ConstPtr& coords);
+    void arMarkerCallback(const ros::TimerEvent& event);
 
     bool navigateToROI(cv::Point, cv::Point, bool initial_navigation);
     Eigen::Vector4f getCenter(int centerX, int centerY, int imgWidth, int imgHeight,

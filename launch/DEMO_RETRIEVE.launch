@@ -8,8 +8,20 @@
 
 	<!-- Launch openni -->
 	<include file="$(find openni_launch)/launch/openni.launch" >
-		<arg name="device_id" value="B00361708600048B" /> 
+		<arg name="camera" value="camera_bottom" />
+		<arg name="device_id" value="B00364613926048B" />
 	</include>
+
+	<!-- Publish static transform for bottom camera -->
+	<node pkg="tf" type="static_transform_publisher" name="camera_bottom_static_tf" args="0.24 0.018 0.555 -0.000 0.135 0.005 0.5 /base /camera_bottom_link 25" />
+	
+	<include file="$(find openni_launch)/launch/openni.launch" >
+		<arg name="camera" value="camera_top" />
+		<arg name="device_id" value="A00367801249047A" />
+	</include>
+
+	<!-- Publish static transform for top camera -->
+	<node pkg="tf" type="static_transform_publisher" name="camera_top_static_tf" args="0.1 0.018 0.9 -0.000 0.0 0.005 0.5 /base /camera_top_link 25" />
 
 	<!-- pull up rviz -->
 	<include file="$(find baxter_moveit_config)/launch/demo_baxter.launch" />

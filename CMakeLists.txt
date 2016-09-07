@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tf_conversions
+  ar_track_alvar
+  tf
 )
 
 
@@ -91,8 +93,8 @@ find_package(Eigen REQUIRED)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES baxter_sp 
-  CATKIN_DEPENDS roscpp rospy std_msgs pcl_msgs pcl_conversions pcl_ros cv_bridge image_transport
+  LIBRARIES baxter_sp ar_track_alvar
+  CATKIN_DEPENDS roscpp rospy std_msgs pcl_msgs pcl_conversions pcl_ros cv_bridge image_transport ar_track_alvar tf
   DEPENDS system_lib Eigen tf_conversions
 )
 
@@ -158,6 +160,11 @@ add_executable(PowerBotNavigate src/PowerBotNavigate.cpp
 add_executable(createKinectToWorldMat src/createKinectToWorldMat.cpp
 )
 
+add_executable(OCR src/OCR.cpp
+		src/PointCloudCapture/PointCloudCapture.cpp
+		src/PointCloudCapture/InputData.cpp
+)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(baxter_sp_node baxter_sp_generate_messages_cpp)
@@ -196,6 +203,14 @@ target_link_libraries(point_cloud_capture_node
 target_link_libraries(gesture_tracker
    ${catkin_LIBRARIES}
    ${OpenCV_LIBS}
+ )
+
+target_link_libraries(OCR
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
+   ${PCL_LIBRARIES}
+   lept
+   tesseract
  )
 
 ##Specify libraries to link a library or executable target against

@@ -33,6 +33,8 @@ import moveit_msgs.msg
 
 import sys
 
+from BaxterUtil import *
+
 class BaxterMoveIt:
     def __init__(self):
         moveit_commander.roscpp_initialize(sys.argv)
@@ -65,7 +67,20 @@ class BaxterMoveIt:
 
     def slowPlanVelocity(self, plan):
         for joint in range(len(plan.joint_trajectory.points)):
-            plan.joint_trajectory.points[joint].time_from_start = plan.joint_trajectory.points[joint].time_from_start * 2
+            plan.joint_trajectory.points[joint].time_from_start = plan.joint_trajectory.points[joint].time_from_start * 1.5
+
+    def createPathPlanMulti(self, objpos, arm, gripperorientation, iterations):
+        plan_success = False
+        for attempt in range(iterations):
+            print "Plan Attempt " + str(attempt) + "..."
+            plan = self.createPathPlan(objpos, arm, gripperorientation)
+            rospy.sleep(1)
+            print plan
+            if len(plan.joint_trajectory.points) > 0:
+                print "Success"
+                return True, plan
+        if not len(plan.joint_trajectory.points) > 0:
+            return False, plan
 
     def createPathPlan(self, objpos, arm=0, gripperorientation=[0, 0.74419, 0, 0.6679]):
         pose_target = geometry_msgs.msg.Pose()
@@ -91,3 +106,39 @@ class BaxterMoveIt:
             self.rightGroup.set_pose_target(pose_target)
 
             return self.rightGroup.plan()
+
+    # attempt to execute a path multiple times
+    def executePlanMulti(self, plan, baxterArm, iterations):
+        path_success = False
+        for attempt in range(iterations):
+            print "Execute Attempt " + str(attempt) + "..."
+            path_success = self.executePlan(baxterArm, plan)
+            rospy.sleep(1)
+            if path_success:
+                print "Success"
+                return True
+        if not path_success:
+            "Failed to execute path"
+            return False
+
+    def executePlan(self, baxterArm, plan):
+        
+        shutoff = queryShutoff()
+
+        if shutoff:
+            return -1
+        
+        if baxterArm == 0:
+            if not self.leftGroup.execute(plan):
+                print "Could not move to plan"
+                # speak("Could not move to pre-object position!")
+                return 0
+            else:
+                return 1
+        else:
+            if not self.rightGroup.execute(plan):
+                print "Could not move to plan"
+                # speak("Could not move to pre-object position!")
+                return 0
+            else:
+                return 1

@@ -1,0 +1,16 @@
+16.5666401386
+8.21505689621
+0.0129671096802
+21.3362560272
+26.4799799919
+30.5440649986
+
+Time to TABLE
+Time to OPE
+Time to COLOR
+Time to GRASP
+Time to USER
+Time to BACK
+
+correct ident of object, failed grasp
+no obstacles hit

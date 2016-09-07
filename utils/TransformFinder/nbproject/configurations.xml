@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="94">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+      <itemPath>include/PointCloudCapture.h</itemPath>
+    </logicalFolder>
+    <logicalFolder name="ResourceFiles"
+                   displayName="Resource Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <itemPath>src/PointCloudCapture.cpp</itemPath>
+      <itemPath>src/main.cpp</itemPath>
+    </logicalFolder>
+    <logicalFolder name="TestFiles"
+                   displayName="Test Files"
+                   projectFiles="false"
+                   kind="TEST_LOGICAL_FOLDER">
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceRootList>
+    <Elem>src</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Debug" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <ccTool>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>/usr/include/pcl-1.7</pElem>
+            <pElem>/opt/ros/hydro/include</pElem>
+            <pElem>/usr/include/eigen3</pElem>
+            <pElem>/usr/include/ni</pElem>
+            <pElem>/usr/include/vtk-5.8</pElem>
+          </incDir>
+        </ccTool>
+        <linkerTool>
+          <linkerLibItems>
+            <linkerLibLibItem>boost_system</linkerLibLibItem>
+            <linkerLibLibItem>OpenNI</linkerLibLibItem>
+            <linkerLibLibItem>pcl_common</linkerLibLibItem>
+            <linkerLibLibItem>pcl_io</linkerLibLibItem>
+            <linkerLibFileItem>/opt/ros/hydro/lib/libopencv_core.so</linkerLibFileItem>
+            <linkerLibFileItem>/opt/ros/hydro/lib/libopencv_highgui.so</linkerLibFileItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <item path="include/PointCloudCapture.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/PointCloudCapture.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/main.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+    </conf>
+    <conf name="Release" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <developmentMode>5</developmentMode>
+        </cTool>
+        <ccTool>
+          <developmentMode>5</developmentMode>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>/usr/include/pcl-1.7</pElem>
+            <pElem>/opt/ros/hydro/include</pElem>
+            <pElem>/usr/include/eigen3</pElem>
+            <pElem>/usr/include/ni</pElem>
+            <pElem>/usr/include/vtk-5.8</pElem>
+          </incDir>
+        </ccTool>
+        <fortranCompilerTool>
+          <developmentMode>5</developmentMode>
+        </fortranCompilerTool>
+        <asmTool>
+          <developmentMode>5</developmentMode>
+        </asmTool>
+        <linkerTool>
+          <linkerLibItems>
+            <linkerLibLibItem>boost_system</linkerLibLibItem>
+            <linkerLibLibItem>OpenNI</linkerLibLibItem>
+            <linkerLibLibItem>pcl_common</linkerLibLibItem>
+            <linkerLibLibItem>pcl_io</linkerLibLibItem>
+            <linkerLibFileItem>/opt/ros/hydro/lib/libopencv_core.so</linkerLibFileItem>
+            <linkerLibFileItem>/opt/ros/hydro/lib/libopencv_highgui.so</linkerLibFileItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <item path="include/PointCloudCapture.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/PointCloudCapture.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="src/main.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>

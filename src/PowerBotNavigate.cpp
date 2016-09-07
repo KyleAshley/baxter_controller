@@ -512,11 +512,161 @@ void PowerBotNavigate::rotationCb(const std_msgs::Int32MultiArray::ConstPtr& coo
 
 }
 
+void PowerBotNavigate::arMarkerCallback(const ros::TimerEvent& event)
+{   
+    // get trasnform to robot coords
+    //tf::StampedTransform transform;
+    //this->listener.lookupTransform(this->ar_person_topic, "/base", ros::Time(0), transform);
+    geometry_msgs::PointStamped p;
+    p.point.x = 0;
+    p.point.y = 0;
+    p.point.z = 0;
+    p.header.frame_id = this->ar_person_topic;
+    try
+    {   
+        this->listener.transformPoint("/base", p, p);
 
+        this->person_pose.data[0] = p.point.x*1000;
+        this->person_pose.data[1] = p.point.y*1000;
+        this->person_pose.data[2] = p.point.z*1000;
+        cout << "transformed naviagation coords: " << this->person_pose.data[0] << " " << this->person_pose.data[1] << " " << this->person_pose.data[2] << endl; 
+    }
+    catch(...){}
+
+}
+
+void PowerBotNavigate::navigateToARTagCb(const std_msgs::String::ConstPtr& msg)
+{
+    cout << "Received command to navigate to AR tag" << endl;
+    this->ar_person_id = atoi(msg->data.c_str());
+    this->ar_person_topic = "ar_marker_"+boost::lexical_cast<std::string>(msg->data);
+    
+    destination_reached_ = false;
+    bool initial_navigation = true;
+    std_msgs::String status_msg;
+
+    while(!destination_reached_)
+    {
+        geometry_msgs::PointStamped p;
+        p.point.x = 0;
+        p.point.y = 0;
+        p.point.z = 0;
+        p.header.frame_id = this->ar_person_topic;
+        try
+        {   
+            this->listener.transformPoint("/base", p, p);
+
+            this->person_pose.data[0] = p.point.x*1000;
+            this->person_pose.data[1] = p.point.y*1000;
+            this->person_pose.data[2] = p.point.z*1000;
+        }
+        catch(...){}
+        
+
+        cout << "Navigating to AR tag location" << endl;
+        destination_reached_ = navigateToARLocation(initial_navigation);
+
+        if(initial_navigation)
+            initial_navigation = false;
+
+        ros::Duration(0.1).sleep();
+        //usleep(5000);
+    }
+    ROS_INFO("NAVIGATION COMPLETE!");
+    status_msg.data = "1";
+    pub_arTagReached_.publish(status_msg);
+}
+
+bool PowerBotNavigate::navigateToARLocation(bool initial_navigation)
+{
+    // wait for topic to update
+    cout << "pos: " << this->person_pose.data[0] << " " << this->person_pose.data[2] << endl; 
+    // return if there is no recent pose data
+    if (this->person_pose.data[0] == -1)
+        return false;
+
+    // publish to yourself
+    pos_.x = (-1*this->person_pose.data[1]);
+    pos_.z = (this->person_pose.data[0]-800);
+    
+    //if(pos_.z < 0) { pos_.z = 0; }
+    if(pos_.z < 0) {return true;}
+
+    /*
+    if((abs(pos_.x) >= 2500) || (abs(pos_.z) >= 3500) ||
+        std::isnan(pos_.x) || std::isnan(pos_.z)) {
+        return false;
+    */
+
+    if(std::isnan(pos_.x) || std::isnan(pos_.z)) {
+        return false;
+
+
+    } 
+    else {
+
+        
+        // request update
+        pbClient_.requestUpdate();
+        ROS_INFO("Current Location: {X,Y} = { %f, %f }", pbClient_.pbX, pbClient_.pbY);
+        
+        // transform destination into world frame
+        pbClient_.transformPoints(pos_.x, pos_.z);
+        ROS_INFO("Desired PowerBot Coordinates {X,Y} = { %f, %f }", pos_.x, pos_.z);
+
+        // add first waypoint and begin navigation
+        if(initial_navigation)
+        {
+            ROS_INFO("Begining Initial Navigation");
+            waypoints_.push_back(pos_);
+            pbClient_.moveTo(waypoints_.front().x, waypoints_.front().z);
+            //usleep(5000000);
+        }
+
+        // if latest data deviates enough from current navigation, add waypoint
+        if((pos_.x >= waypoints_.front().x + 200 || pos_.x <= waypoints_.front().x - 200) || (pos_.z >= waypoints_.front().z + 200 || pos_.z <= waypoints_.front().z - 200))
+        {
+             ROS_INFO("Adding Waypoint");
+            waypoints_.push_back(pos_);
+        }
+
+        pbClient_.requestUpdate();
+
+        // if front WP is reached or PB stopped, go to next waypoint
+        if(((pbClient_.pbX <= waypoints_.front().x + 500 && pbClient_.pbX >= waypoints_.front().x - 500) && (pbClient_.pbY <= waypoints_.front().z + 500 && pbClient_.pbY >= waypoints_.front().z - 500)) || waypoints_.size() > 2)
+        {   
+            ROS_INFO("Waypoint Reached");
+            ROS_INFO("Current Location: {X,Y} = { %f, %f }", pbClient_.pbX, pbClient_.pbY);
+            waypoints_.pop_front();
+            ROS_INFO("Waypoints Left = %f", (float)waypoints_.size());
+
+            if(waypoints_.empty())
+                return true;
+            else
+            {
+                ROS_INFO("Moving to Next Waypoint: {X,Y} = { %f, %f }", waypoints_.front().x, waypoints_.front().z);
+                pbClient_.moveTo(waypoints_.front().x, waypoints_.front().z);
+                //waypoints_.clear();
+                return false;
+            }
+        }
+        else
+            return false;
+    }
+
+    return true;
+    
+}
 
 PowerBotNavigate::PowerBotNavigate()
 {
     destination_reached_ = false;
+    this->ar_person_id = 0;
+
+    this->person_pose.data.clear();
+    this->person_pose.data.push_back(-1);
+    this->person_pose.data.push_back(-1);
+    this->person_pose.data.push_back(-1);
 
     // setup Kinect and get a point cloud
     /*pcc_ = new PointCloudCapture("A00367801249047A");
@@ -566,11 +716,21 @@ PowerBotNavigate::PowerBotNavigate()
     pub_locationReached_ = n_.advertise<std_msgs::String>("Navigation/locationReached", 1);
     pub_rotationReached_ = n_.advertise<std_msgs::String>("Navigation/rotationReached", 1);
 
+    // for AR navigation
+    pub_arToLocInternal_ = n_.advertise<std_msgs::Int32MultiArray>("Navigation/desiredLocation", 1);
+    pub_arTagReached_ = n_.advertise<std_msgs::String>("Navigation/arTagReached", 1);
+
     // navigate to detection (receives id for face navigation or anything for detection navigation)
     sub_face_navigate_ = n_.subscribe("Navigation/faceID", 1, &PowerBotNavigate::navigateToDetectionCb, this);
 
     sub_location_navigate_ = n_.subscribe("Navigation/desiredLocation", 1, &PowerBotNavigate::navigateToLocationCb, this);
     sub_rotate_ = n_.subscribe("Navigation/desiredRotation", 1, &PowerBotNavigate::rotationCb, this);
+    sub_ar_navigate_ = n_.subscribe("Navigation/desiredARTag", 1, &PowerBotNavigate::navigateToARTagCb, this);
+
+    // use timer because idk how to solve segfault issue for multiple markers 
+    //sub_ar_marker_ = n_.subscribe("/ar_pose_marker", 1, &PowerBotNavigate::arMarkerCallback, this);
+    ros::Timer timer = n_.createTimer(ros::Duration(0.1), &PowerBotNavigate::arMarkerCallback, this);
+
     /*
     ros::Rate loop_rate(10);
     // publish kinect images
@@ -606,6 +766,15 @@ PowerBotNavigate::PowerBotNavigate()
     }
     */
 
+    /*
+    while (ros::ok())
+    {
+        ros::Rate loop_rate(10);
+
+        ros::spinOnce();
+        loop_rate.sleep();
+    }
+    */
     ros::spin();
     //pcc_->stopCapture();
     
@@ -613,6 +782,9 @@ PowerBotNavigate::PowerBotNavigate()
     return;
     // PUBLISH IMG
 }
+
+
+
 
 int main(int argc, char **argv)
 {
