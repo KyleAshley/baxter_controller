@@ -94,7 +94,7 @@ class BaxterController:
         #-----------------------------------------------------------#
         # MIMIC DEMO
         #-----------------------------------------------------------#
-        self.action.mimic(self.vision)
+        #self.action.mimic(self.vision)
         #-----------------------------------------------------------#
         '''
         #self.action.command_retrieve_book("kyle", "computer vision")
@@ -106,16 +106,18 @@ class BaxterController:
 
         #self.action.measureDeformation(1)
 
-        self.action.command_grasp_object('white')
-        #self.action.command_retrieve('kyle', 'pink')
+        #self.action.command_grasp_object('white')
+        self.action.command_retrieve('kyle', 'white')
         '''
-        self.action.record(self.vision)
+        #self.action.record(self.vision)
 
-        self.action.playback()
+        #self.action.playback()
         '''
         #self.action.command_sort()
         #rospy.sleep(2)
         #self.vision.calibrateCamera()
+
+        #self.action.command_grasp_object_moveit('pink')
 
 
 

@@ -1,0 +1,11 @@
+18.0629599094
+63.851047039
+27.8604040146
+44.8450558186
+
+Time to TABLE
+Time to GRASP
+Time to USER
+Time to BACK
+
+all good

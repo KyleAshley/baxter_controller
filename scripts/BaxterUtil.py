@@ -73,3 +73,12 @@ def retrieve_times_to_file(times_list):
 
 	f.write('\nTime to TABLE\nTime to OPE\nTime to COLOR\nTime to GRASP\nTime to USER\nTime to BACK')
 	f.close()
+
+def book_times_to_file(times_list):
+	f = open('times_'+str(datetime.now())+'.txt', 'w')
+
+	for t in range(len(times_list)-1):
+		f.write(str(times_list[t+1] - times_list[t])+'\n')
+
+	f.write('\nTime to TABLE\nTime to GRASP\nTime to USER\nTime to BACK')
+	f.close()

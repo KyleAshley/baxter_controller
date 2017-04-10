@@ -142,3 +142,9 @@ class BaxterMoveIt:
                 return 0
             else:
                 return 1
+
+    def pick(self, baxterArm, object_id=None):
+        if baxterArm == 0:
+            self.leftGroup.pick(object_id)
+        else:
+            self.rightGroup.pick(object_id)

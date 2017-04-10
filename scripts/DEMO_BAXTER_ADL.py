@@ -140,11 +140,11 @@ def clientthread(conn1):
                 except rospy.ROSInterruptException:
                     pass
 
-            elif (str(commandID[0]) == "2"):                              # command 1 = object retreival
-                print "command = 2, Getting " + commandID[2] + " the book " + commandID[3] + " by " + commandID[4]
+            elif (str(commandID[0]) == "3"):                              # command 1 = object retreival
+                print "command = 2, Getting " + commandID[2] + " the book " + commandID[4] + " by " + commandID[3]
             
                 #bx.action.command_retrieve(personStr = commandID[1], color = str(commandID[3]))
-                bx.action.command_retrieve_book(personStr = str(commandID[2]), title = commandID[3])      
+                bx.action.command_retrieve_book(personStr = str(commandID[2]), title = commandID[4])      
             
             elif (str(commandID[0]) == "4"):
                 print "command = 4, navigating to " + str(commandID[2])

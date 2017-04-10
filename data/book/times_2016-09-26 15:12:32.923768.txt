@@ -1,0 +1,12 @@
+16.7733089924
+82.4475748539
+17.85672903061
+58.2673809528
+
+Time to TABLE
+Time to GRASP
+Time to USER
+Time to BACK
+
+failed to make it to the user
+grabbed the correct book

@@ -1,0 +1,11 @@
+17.6775360107
+35.5925381184
+47.1070787907
+24.855681181
+
+Time to TABLE
+Time to GRASP
+Time to USER
+Time to BACK
+
+all good

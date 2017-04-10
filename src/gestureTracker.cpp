@@ -1,5 +1,6 @@
 #include "gestureTracker.h"
 
+int i = 0;
 int clamp(int n, int min, int max);
 
 gestureTracker::gestureTracker(ros::NodeHandle n): it(n)
@@ -268,14 +269,14 @@ void gestureTracker::detectGesture(Mat hand_roi, string rl)
 	Scalar blue = Scalar( 255, 0, 0 );
 	Scalar red = Scalar( 0, 0, 255 );
 	Scalar green = Scalar( 0, 255, 0 );
-	
+	/*
 	if(idx != -1)
 	{
-		//drawContours( drawing, contours, idx, white, 1, 8, vector<Vec4i>(), 0, Point() );
+		drawContours( drawing, contours, idx, white, 1, 8, vector<Vec4i>(), 0, Point() );
 		//imshow(rl, drawing);
 		//cv::waitKey(20);
 	}
-		
+	*/
 	
 	if(idx != -1)
 	{
@@ -346,13 +347,13 @@ void gestureTracker::detectGesture(Mat hand_roi, string rl)
 		 		int idx_2 = defects[0][i][2];
 		 		defect_points[i].push_back(contours[idx][idx_2]);
 		 		
-		 		/*
+		 		
 		 		circle(drawing, contours[idx][idx_0], 5, yellow, -1);
 		 		circle(drawing, contours[idx][idx_1], 5, blue, -1);
 		 		circle(drawing, contours[idx][idx_2], 5, red, -1);
 		 		line(drawing, contours[idx][idx_2], contours[idx][idx_0], purple, 1);
 		 		line(drawing, contours[idx][idx_2], contours[idx][idx_1], purple, 1);
-				*/
+				
 
 		 		int tip_x = contours[idx][idx_0].x;
 		 		int tip_y = contours[idx][idx_0].y;
@@ -392,12 +393,18 @@ void gestureTracker::detectGesture(Mat hand_roi, string rl)
 		 	}
 
 	 	}
+	 	
+	 	i++;
 	 	/*
 	 	try{
 	 	if(rl == "right")
+	 	{
 			imshow(rl + "hand", drawing);
+			imwrite(rl + boost::lexical_cast<string>(i) + "hand.jpg", drawing);
+		}
 		else
 			imshow(rl + "hand", drawing);
+			imwrite(rl + boost::lexical_cast<string>(i) + "hand.jpg", drawing);
 		}
 		catch(...){return;}
 		*/

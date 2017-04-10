@@ -1244,6 +1244,110 @@ class BaxterAction:
             rospy.loginfo("No Objects Detected")
             return 
 
+
+    # Object Grasping
+    # - Assume objects are in view of robot on a table
+    # - Runs OPE and grasps  object with color of parameter 'color'
+    def command_grasp_object_moveit(self, color):
+        rospy.loginfo("Retreive Grasp Starting")
+
+        # remove any remaining collision models of OPE objects
+        for i in range(50):
+            self.moveit.scene.remove_world_object("OBJECT" + str(i))
+        self.moveit.scene.remove_world_object("TABLE")
+
+        # reset arms
+        self.goToWaiting(0)
+        #rospy.sleep(1)
+
+        self.goToWaiting(1)
+        #rospy.sleep(1)
+
+        #Remove Old PCDs
+        removePCDs(OPE_DIR)
+        #rospy.sleep(1)
+        
+        #if self.gotoWaiting():
+        #*********************************************************************************#
+        # Object Pose Estimation Selection (WORKING)
+        # - Estimate Object Poses 
+        # - Save OPE Results to txt
+        # - Average Hues and save to color file
+
+        # Run OPE
+        OPEAssist.runOPE()
+        OPEAssist.loadOPEResults()
+        #rospy.sleep(1)
+
+        # Get OPE Object Colors
+        colors_process = Popen(COLORS_CMD, shell=True, preexec_fn=os.setsid)
+        #rospy.sleep(1)
+
+        # Colored Object Selection
+        #TODO: Obtain color form command string
+        desired_color = color
+        #desired_color = "white"
+        objectNum = 0
+        baxterArm = 0
+
+        colorFile = open(OPE_DIR + "ObjectColors.txt")
+        content = colorFile.readlines()
+        print content
+
+        i = 0
+        for colors in content:
+            objColor = colors.strip("'").rstrip()
+
+            print "checking: " + objColor
+            if objColor == desired_color:
+                objectNum = i
+                break
+            i = i + 1
+
+        print "Object Number: " , objectNum
+        #*********************************************************************************#
+        # TODO: transform based on kinect
+        #*********************************************************************************#
+        # Show OPE Results, Grab the Object
+        objectLoc = None
+        if OPEAssist.objCount > 0:
+
+            rospy.loginfo("Adding Table Collision Model")
+            #ADD Table Collision Model
+            self.moveit.addObject("TABLE",
+                                  OPEAssist.tablePos,
+                                  OPEAssist.tableSize)
+
+            # ADD Object Collision Models
+            for x in OPEAssist.objList:
+                self.moveit.addObject("OBJECT" + str(x['objNumber']),
+                                      x['objPos'],
+                                      x['objSize'])
+
+            #rospy.sleep(1)
+            #OPEAssist.showOPEResults()
+            
+            objectLoc = OPEAssist.objList[objectNum]['objPos']
+            print "OBJECT ", objectNum
+            
+            print "attempting pick"
+            self.moveit.pick('OBJECT'+str(objectNum))
+
+            
+            for i in range(OPEAssist.objCount):
+                self.moveit.scene.remove_world_object("OBJECT" + str(i))
+            self.moveit.scene.remove_world_object("TABLE")
+            
+
+            #self.bringToSide( BaxterPositions.lowerRightSidePos, BaxterPositions.lowerRightSideRot, leftRight = "right")
+            #self.bringToSide( BaxterPositions.lowerLeftSidePos, BaxterPositions.lowerLeftSideRot, leftRight = "left")
+        #*********************************************************************************#
+        else:
+            rospy.loginfo("No Objects Detected")
+            return 
+
+
+
     # Object Retrieval
     # - Navigate to set Table coords
     # - Run OPE and grasp object
@@ -1813,28 +1917,43 @@ class BaxterAction:
         
         rospy.loginfo("Starting Book Retrieval Task")
         
-        # set arms to waiting position
+        t_start = time.time()
+        # reset arms
         self.goToWaiting(0)
-        rospy.sleep(1)
-        self.goToWaiting(1)
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
+        self.goToWaiting(1)
+        #rospy.sleep(1)
+
+        # navigate to table
+        tablePos = Int32MultiArray()
+        tablePos.data = BaxterPositions.default_table
+
+        self.pub_locNav.publish(tablePos)
+        while self.location_reached != True:
+            pass
+        rospy.loginfo("Arrived at default object table coordinates")
+        self.location_reached = False 
+        
+        t_table = time.time()
+
+        rospy.sleep(1.0)
         self.shelf_marker_id = 9
         # set it to use left arm
         self.activeArm = 0
         baxterArm = self.activeArm
-        self.pre_shelf_pos = self.moveToARTag(ar_id = self.shelf_marker_id, baxterArm=baxterArm, off_x = -0.15, off_y = 0.0, off_z = 0.04)
+        self.pre_shelf_pos = self.moveToARTag(ar_id = self.shelf_marker_id, baxterArm=baxterArm, off_x = -0.20, off_y = 0.0, off_z = 0.04)
         
         if self.pre_shelf_pos == -1:
             rospy.loginfo("Failed to move to preshelf pos")
             return
 
-
+                
         # perform OCR
         #bookTitle = "george orwell"
         bookTitle = str(title)
         rospy.loginfo("Looking for Book: " + str(bookTitle))
-        self.pub_bookTitle.publish(bookTitle)
+        #self.pub_bookTitle.publish(bookTitle)
 
         iterations = 0
         max_iter = 10            # number of iterations to scan the shelf
@@ -1846,7 +1965,8 @@ class BaxterAction:
             #self.bookFound = False
             for i in range(OCR_iterations):
                 self.pub_bookTitle.publish(bookTitle)
-                rospy.sleep(1.0)
+                rospy.sleep(0.5)
+                
                 if self.bookFound:
                     rospy.loginfo("Book Found after " + str(i) + " Iterations of OCR")
                     break  
@@ -1857,7 +1977,7 @@ class BaxterAction:
                 iterations+=1
 
 
-            time.sleep(0.6)
+            #time.sleep(0.6)
 
             
 
@@ -1866,7 +1986,7 @@ class BaxterAction:
                 # move the end effector back to avoid hitting the shelf
                 rospy.loginfo("STATUS: RESET")
                 self.adjustEndEffector(xyz = "xyz", val = [-15,0,0], baxterArm = baxterArm)
-                self.pre_shelf_pos = self.moveToARTag(ar_id = self.shelf_marker_id, baxterArm=baxterArm, off_x = -0.15, off_y = 0.0, off_z = 0.04)
+                self.pre_shelf_pos = self.moveToARTag(ar_id = self.shelf_marker_id, baxterArm=baxterArm, off_x = -0.20, off_y = 0.0, off_z = 0.05)
                 if self.pre_shelf_pos == -1:
                     rospy.loginfo("Failed to move to preshelf pos")
                     return
@@ -1893,6 +2013,139 @@ class BaxterAction:
             self.goToWaiting(0)
             rospy.sleep(0.5)
 
+        t_grasp = time.time()
+         #*********************************************************************************#
+        # Face Navigation Section (Working - dependant on PowerBotNavigation ROS Node)
+        # - Load Face profiles and navigate to coordinates of 'personId' 
+        personId = -1
+        #personId = int(personStr)
+        if personId is not None:
+            # nav using face recognition
+            
+            # speak("Navigating to Person" + str(personId))
+            self.command_done = False
+            faceID = str(personId)
+
+            # rotate away from the table
+            rotation = Int32MultiArray()
+            rotation.data = [-1, -1 , 180]
+
+            self.rotation_reached = False
+            self.pub_rotNav.publish(rotation)
+            while self.rotation_reached != True:
+                pass
+
+            rotation.data = [-1, -1 , -90] 
+            self.rotation_reached = False
+            self.pub_rotNav.publish(rotation)
+            while self.rotation_reached != True:
+                pass
+            
+            rospy.loginfo("Facing away from table")
+            self.location_reached = False
+            
+            '''
+            ## COMMENT OUT
+            rospy.sleep(10)
+
+            defaultPos = Int32MultiArray()
+            defaultPos.data = [1470,-850,0]
+            self.pub_locNav.publish(defaultPos)
+            while self.location_reached != True:
+                pass
+            rospy.loginfo("Arrived at default navigation coordinates")
+            self.location_reached = False;
+            ## END HERE
+            '''
+
+            if personId != -1:
+                #if not self.command_done:
+                rospy.loginfo("Starting PowerBot Navigation to person: " + faceID)
+                self.pub_detectNav.publish(faceID)
+
+            # anonymous nav using AR tags
+            else:
+                rospy.loginfo("Starting search for AR Tag 0")
+                ar_id = 0
+                self.command_done = False
+
+                MAX_ITER = 50000
+                iterations = 0
+                while not ar_id in self.ar_markers and iterations < MAX_ITER:
+                    rospy.loginfo("Looking for marker...")
+                    rospy.sleep(0.1)
+                    rospy.loginfo(str(iterations) + ": AR tag " + str(ar_id) + " is not seen by the camera")
+                    iterations+=1
+
+                rospy.loginfo("-----------------------------------------------")
+                rospy.loginfo("FOUND AT POS: "+ str(self.ar_markers[ar_id]))
+                rospy.loginfo("-----------------------------------------------")
+                
+                pos = self.ar_markers[ar_id]
+                
+
+                self.pub_arNav.publish("0")
+                rospy.loginfo("Starting PowerBot Navigation to AR Tag 0")
+
+        # ------------------------------------------------------------------------#
+        # navigate to the user
+        while (self.location_reached == False and self.arTag_reached == False):
+            pass
+        self.location_reached = False 
+        self.arTag_reached = False
+
+        t_user = time.time()
+
+        print "DONE! Handing it to the user...."
+        while not(self.rightGripperState.force == 0 and self.leftGripperState.force == 0):
+            rospy.sleep(0.5)
+            print "Waiting for user to take the object"
+
+        # speak("Going to object (raised) position....")
+        # OBJECT POSE (RAISED)4
+        rospy.loginfo("DONE NAVIGATING... TAKE THE OBJECT")
+        rospy.sleep(2)
+
+        self.goToWaiting(baxterArm)
+
+        # rotate away from the table
+        rotation = Int32MultiArray()
+        rotation.data = [-1, -1 , 180]
+
+        self.rotation_reached = False
+        self.pub_rotNav.publish(rotation)
+        while self.rotation_reached != True:
+            pass
+        self.rotation_reached = False
+
+
+        # rotate away from the table
+        rotation = Int32MultiArray()
+        rotation.data = [-1, -1 , 90]
+
+        self.rotation_reached = False
+        self.pub_rotNav.publish(rotation)
+        while self.rotation_reached != True:
+            pass
+        self.rotation_reached = False
+
+        # navigate to table
+        tablePos = Int32MultiArray()
+        tablePos.data = BaxterPositions.default_table
+
+        self.pub_locNav.publish(tablePos)
+        while self.location_reached != True:
+            pass
+        rospy.loginfo("Arrived at default object table coordinates")
+        self.location_reached = False 
+
+        #*********************************************************************************#
+    
+        t_nav_back = time.time()
+
+        times_list = [t_start, t_table, t_grasp, t_user, t_nav_back]
+        book_times_to_file(times_list)
+        #self.rate.sleep()
         #*******************************************************************************************************************#
         # END BOOK RETRIEVE
         #*******************************************************************************************************************#
